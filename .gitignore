@@ -14,6 +14,10 @@ ml/runs/
 *.pt
 *.onnx
 
+# Model files: only the bundled fallback model in eagle assets is committed
+*.tflite
+!eagle/app/src/main/assets/*.tflite
+
 # Demo footage
 demo/footage/
 

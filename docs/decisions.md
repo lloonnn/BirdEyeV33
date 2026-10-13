@@ -1,0 +1,166 @@
+# Bird Eye v33 Decisions
+
+This file wins over every other document in the repo, including `docs/reference/`, `docs/architecture.md` and any CLAUDE.md. Reason: the reference sources are out of date, and this file records what the team decided after them. When a decision changes, update this file first, then the documents that depend on it.
+
+## 1. Scope
+
+### In scope for the hackathon build
+
+| Item | Reason |
+|---|---|
+| eagle Android app with on-device detection, crop blur, local queue, upload, heat handling | Detection on the phone means only kilobyte records cross the network and video never leaves the device |
+| Two classes: pothole and crack | The maintenance team needs fix-first decisions, not crack types, and RDD2022 labels both |
+| FastAPI backend with ingest, merge, lifecycle, coverage, urgency and repair confirmation | These turn noisy sightings into tracked defects, which is the core of the product |
+| Work order agent and daily brief agent, with supervisor approval | They show the agent layer with a human in control of anything that leaves the system |
+| Dashboard: Overview map, Review, Work orders, Coverage, Devices, Daily brief | These are the screens a supervisor needs to act on defects |
+| Training pipeline in `ml/`: RDD2022, PyTorch, conversion to LiteRT, evaluation gate | The first model must exist and must not regress when retrained |
+| Cars and vans in one Elmina precinct | Phones are unreliable on motorcycles in Malaysian heat and vibration |
+
+### Out of scope
+
+Do not add any of these. Each one is future work, listed in `docs/architecture.md` section 11.
+
+| Item | Reason |
+|---|---|
+| Authentication, per-phone keys, dashboard login and roles | Not needed to prove the loop in a demo; added once SDP adopts the system |
+| Shift records on the server | The server groups data by device and time, which is enough for the pilot |
+| Township boundary setting | Patrol vehicles stay in their precinct, and the server ignores detections off the pilot road segments |
+| Resident page | Residents are out of scope for the prototype; they benefit indirectly from faster repairs |
+| Motorcycles | Phones overheat and suffer from vibration without air conditioning |
+| Extra defect classes: drains, street lights, fallen trees, illegal dumping, and others | The first model has 2 classes; drains have no public labelled dataset |
+| Escalation agent and council reports | It needs data on which roads were handed to the council, which the pilot does not have |
+| Local Malaysian training data | There is none yet; measuring local accuracy is the first task of the pilot |
+| Rain forecast in the urgency score | It only mattered for drains, which are not detected |
+
+## 2. Decision log
+
+Status values: **decided**, **starting value** (a tunable number, untested), **you decide** (the team must choose), **verify** (a fact to check), **deferred** (later), **mentors** (ask the hackathon mentors or SDP).
+
+### Product, scope and process
+
+| # | Decision | Reason | Status |
+|---|---|---|---|
+| 1 | Product name is Bird Eye v33. "Patrol Eye" in the sources is the old name. | One name across code, docs and pitch | decided |
+| 2 | Folders: `eagle/` (Android, package `com.birdeye`), `backend/` (FastAPI, uv), `dashboard/` (Next.js), `ml/` (training and conversion) | One folder per runtime, so each has its own build and owner | decided |
+| 3 | `backend/` and `ml/` are separate uv projects | The server never installs PyTorch | decided |
+| 4 | Pilot scope: cars and vans, one Elmina precinct | Phones are unreliable on motorcycles | decided |
+| 5 | No authentication, shift records, township boundary or resident page in the hackathon build | Keeps the build focused on the detection to repair loop | decided |
+| 6 | Write only new code; do not copy from personal projects or the web | Hackathon IP terms, clauses 11 and 12.2 | decided |
+| 7 | No new dependency, dataset, model, map tile source or API without a row in the licence register | Every third-party item must be checked against the IP terms before use | decided |
+| 8 | No Ultralytics or other AGPL code anywhere in the repo | AGPL may conflict with the hackathon IP terms | decided |
+| 9 | Keep Claude Code's Co-Authored-By trailer on commits | Hackathon terms clause 13.1 require disclosing material AI use, and the trailer is the record | decided |
+| 10 | SDP's current defect finding method and typical repair time | They are the baseline the pilot is measured against | mentors |
+
+### Model and training
+
+| # | Decision | Reason | Status |
+|---|---|---|---|
+| 11 | Train in PyTorch, convert once to TensorFlow Lite (LiteRT), run on the phone with the GPU delegate | PyTorch for training; LiteRT with the GPU delegate is fast enough on a phone | decided |
+| 12 | The first model has 2 classes, pothole and crack, trained on RDD2022 only | Fix-first decisions need no crack types; no local labelled data exists yet | decided |
+| 13 | Never claim accuracy on Malaysian roads | RDD2022 has no Malaysian images, so the model is untested there | decided |
+| 14 | Locally recorded footage is for testing and the demo only, not training | No local data is used for training yet; local testing happens in the pilot | decided |
+| 15 | Detector choice; candidate YOLOX (Apache 2.0) | Ultralytics YOLO is AGPL-3.0, which may conflict with the hackathon IP terms | you decide |
+| 16 | Tool for converting PyTorch to LiteRT | Ultralytics export is ruled out with Ultralytics | you decide |
+| 17 | Fallback if the RDD2022 model misses most local defects before the demo | Local labelling is ruled out for now | you decide |
+| 18 | Evaluation gate metric: mAP@0.5 per class | A standard detection metric that compares models class by class | starting value |
+| 19 | If RDD2022 test labels are not public, hold out a fixed slice of the training data | Every model must be measured against the same test | verify |
+| 20 | Speed check: 3 frames a second on the cheapest team phone | A model that is accurate but too slow cannot run on a patrol | starting value |
+| 21 | Commit only the bundled fallback `.tflite` in eagle assets; gitignore all other `.tflite` files | The app needs one model to work offline; other model files are large build outputs | decided |
+| 22 | Model delivery: `GET /config` and `GET /models/{version}` at shift start; the bundled model is only the offline fallback | Models update without an app release | decided |
+
+### eagle app
+
+| # | Decision | Reason | Status |
+|---|---|---|---|
+| 23 | eagle min SDK is 26 | `java.time` works natively from API 26 without desugaring, and the app writes timestamps with offsets | decided |
+| 24 | The Android theme is `BirdEyeTheme()` in `eagle/app/src/main/java/com/birdeye/ui/theme/BirdEyeTheme.kt`; the template `Theme.kt`, `Color.kt` and `Type.kt` are deleted | One named theme for the app, matching the dashboard tokens | decided |
+| 25 | Theme token source of truth: `dashboard/app/globals.css` and `BirdEyeTheme.kt`, not the reference source | The running code is what users see | decided |
+| 26 | Every threshold is a config value marked as a starting value, never hard-coded | Thresholds change during testing without a code change or app release | decided |
+| 27 | Duplicate filter: same class within 5 m and 5 s | One pothole becomes one record per pass | starting value |
+| 28 | Upload in batches every 5 minutes during the shift over mobile data; end-of-shift WiFi sync is dropped | Records are kilobytes and the dashboard is live | decided (interval is a starting value) |
+| 29 | `urgent` is always false in the 2-class version; the field is kept | No pothole or crack needs to jump the batch; future classes may | decided |
+| 30 | Heartbeat states: `scanning` is active at full rate; `cooling` is active at reduced rate; `paused` is not active, with `pause_reason` `heat` or `parked`. `offline_queueing` is removed. | Each state maps cleanly to active or not active for the seen rule | decided |
+| 31 | Heartbeat `online` is a boolean, separate from `state` | A phone can scan while offline | decided |
+| 32 | Heartbeat `model_error` reports a failed model load | The dashboard can show phones stuck on an old model | decided |
+| 33 | Face and plate blur model | Must run on the phone and pass the licence check | you decide |
+
+### Backend, coverage and lifecycle
+
+| # | Decision | Reason | Status |
+|---|---|---|---|
+| 34 | Demo hosting: laptop, PostgreSQL and PostGIS in Docker, crops on local disk behind a storage interface | No cloud setup for the demo; the interface lets object storage replace local disk later | decided |
+| 35 | Background jobs and agent runs use APScheduler inside the backend | The pilot runs on one server, so a separate job queue adds parts without adding value | decided |
+| 36 | No pin snapping; store the nearest segment ID for coverage only | Snapping can move a pin onto the wrong road at a junction | decided |
+| 37 | Pass: one device's continuous active traversal of a segment; same-device passes count separately only if at least 1 hour apart | A car circling one block must not pile up passes within minutes | starting value |
+| 38 | Seen: 6 or more frames, computed as active seconds within 10 m of the segment times the frame rate; track active ranges carry the frame rate | The phone sends no per-frame data, so the backend estimates frames from the track | starting value |
+| 39 | A later pass is a clean pass only if the segment was seen and no matching defect was detected; otherwise it is "not seen", never clean | Heat pauses, parked phones and undriven roads must not confirm repairs | decided |
+| 40 | The seen rule does not detect occlusion. A car parked over a pothole still yields a clean pass. Mitigation: clean passes must fall on at least 2 different days. | A parked car rarely stays in one spot across days; this reduces the risk but does not remove it | decided |
+| 41 | Fixed to Confirmed after about 3 clean passes | Coverage, not time, confirms a fix | starting value |
+| 42 | Detected to Verified after sightings on 3 distinct passes | One bad record cannot create a verified defect | starting value |
+| 43 | Main roads: OSM `highway` primary, secondary, tertiary. School routes: segments within 300 m of an OSM school. | Both come from the same OSM load as the segments | starting value |
+| 43a | Junction: a segment within 30 m of an OSM node shared by 3 or more ways | Comes from the same OSM load as the segments | starting value |
+| 44 | In the urgency type term, a pothole scores higher than a crack | A pothole is the more immediate hazard to vehicles and motorcyclists; final values are set with SDP | starting value |
+| 45 | Urgency weights start equal | The weights are set with SDP, not guessed | starting value |
+| 46 | The urgency score has no rain term | Rain only mattered for drains, which are not detected | decided |
+| 47 | Track upload field names | Not needed until the track logger is built | deferred |
+| 48 | Response bodies for endpoints other than the detection record and heartbeat | Defined when each endpoint is built | deferred |
+| 49 | Error format: FastAPI's default `{"detail": ...}` | No extra code; a custom format is deferred | deferred |
+
+### API
+
+| # | Decision | Reason | Status |
+|---|---|---|---|
+| 50 | New endpoints: `POST /defects/{id}/verify`, `POST /defects/{id}/reject`, `PATCH /work-orders/{id}`, `POST /work-orders/{id}/reject`, `POST /work-orders/{id}/done`, `GET /brief/latest` | The lifecycle and dashboard need an endpoint for every supervisor action | decided |
+
+### Agents
+
+| # | Decision | Reason | Status |
+|---|---|---|---|
+| 51 | Agents live in the backend package `bird_eye.agents` | They call the same backend functions as the API, so a separate service adds nothing | decided |
+| 52 | The escalation agent is not built in this version | It needs data on which roads were handed to the council, which the pilot does not have | decided |
+| 53 | Daily brief at 07:00 Malaysia time | Before the first shift, as the source requires | starting value |
+| 54 | Language model for the agents | Provider not chosen | you decide |
+
+### Dashboard and demo
+
+| # | Decision | Reason | Status |
+|---|---|---|---|
+| 55 | Map: plain Leaflet in one React component, not react-leaflet | react-leaflet is Hippocratic-2.1, not OSI, and may conflict with SDP commercial use | decided |
+| 56 | Dashboard is dark by default via `className="dark"` on `<html>` | shadcn switches theme with the `.dark` class, and the design is dark first | decided |
+| 57 | The demo uses real potholes and cracks recorded nearby; staged rubbish, branches and leaves are not used | The 2-class model cannot detect the staged items | decided |
+| 58 | Repair confirmation in the demo uses the scenario script | A real repair cannot be staged safely within the hackathon | decided |
+| 59 | No demo scene for a "not seen" pass | Demo time is short | decided |
+| 60 | Plain HTTP in the demo only, phone to laptop on local Wi-Fi, through an Android network security config that allows cleartext for the laptop's address only; any server off the laptop uses HTTPS | A laptop on local Wi-Fi has no trusted certificate; limiting cleartext to one address keeps everything else on HTTPS | decided |
+| 61 | Bundle Geist and Geist Mono in the app instead of Google downloadable fonts | No font certificates file, and type works offline | decided |
+
+## 3. Licence register
+
+Add a row before adding any dependency, dataset, model, map tile source or API. "Licence" is what the package registry or repository reports. "verify" means the licence or its fit with the hackathon IP terms is not confirmed.
+
+| Item | Use | Licence | Status |
+|---|---|---|---|
+| RDD2022 | Training data for the first model | Not checked; also check whether test labels are public | verify |
+| Detector | On-device pothole and crack detection | Undecided; candidate YOLOX (Apache 2.0, not checked) | undecided |
+| Face and plate blur model | Blurring crops on the phone | Undecided | undecided |
+| CARTO Dark Matter tiles | Dark base map on the dashboard | Commercial use needs a licence | verify |
+| Satellite tiles | Optional map layer | Not chosen, not checked | verify |
+| Bklit UI | Dashboard charts | Not checked | verify |
+| shadcn/ui (`shadcn` package) | Dashboard components | MIT (npm metadata) | confirmed |
+| `@base-ui/react` | Primitives under shadcn Vega | MIT (npm metadata) | confirmed |
+| Next.js | Dashboard framework | MIT (npm metadata) | confirmed |
+| Recharts | Charts in the current dashboard scaffold | MIT (npm metadata) | confirmed |
+| Leaflet | Map engine, wrapped in one React component | BSD-2-Clause (npm metadata) | confirmed |
+| react-leaflet | Not used; replaced by plain Leaflet | Hippocratic-2.1 (npm metadata), not an OSI licence | rejected |
+| Leaflet marker clustering plugin | Clustering defect pins | Plugin not chosen, not checked | verify |
+| LiteRT | On-device inference | Apache-2.0 (GitHub `google-ai-edge/LiteRT`) | confirmed; check the Android artifact when adding |
+| PyTorch | Training in `ml/` | Apache-2.0 and others (PyPI metadata) | confirmed |
+| FastAPI | Backend API | MIT (PyPI metadata) | confirmed |
+| APScheduler | Backend job scheduling | MIT (PyPI metadata) | confirmed |
+| PostgreSQL | Database | Not checked | verify |
+| PostGIS | Spatial queries in the database | GPL-2.0 (GitHub `postgis/postgis`) | low risk: used as a server, not distributed; confirm with organisers |
+| PostGIS Docker image | Demo database on the laptop | Not checked | verify |
+| OpenStreetMap data | Road segments for coverage | ODbL, attribution required | confirmed; show attribution on the map |
+| CameraX, Room, WorkManager, Jetpack Compose | eagle app | Not checked | verify |
+| Google Play services location | GPS in eagle | Not checked | verify |
+| Geist and Geist Mono fonts | Dashboard type (next/font); app type bundled in `eagle/app/src/main/res/font/` from vercel/geist-font v1.7.2 | SIL OFL 1.1 (`OFL.txt` in the release; copy in `eagle/app/src/main/assets/licenses/`) | confirmed |
+| Language model API | Agents | Provider not chosen | undecided |
