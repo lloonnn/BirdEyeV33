@@ -1,0 +1,22 @@
+# IDE settings (any folder level)
+.idea/
+.vscode/
+*.iml
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# ML data and outputs
+ml/data/
+ml/runs/
+*.pt
+*.onnx
+
+# Demo footage
+demo/footage/
+
+# OS
+.DS_Store
+Thumbs.db
