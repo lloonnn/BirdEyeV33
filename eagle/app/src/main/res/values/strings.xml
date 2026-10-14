@@ -1,3 +1,80 @@
 <resources>
     <string name="app_name">BirdEyeV33</string>
+
+    <!-- Key states. Each English string has a Malay pair below it. -->
+    <string name="start_shift_en">Start shift</string>
+    <!-- check with a Malay speaker -->
+    <string name="start_shift_ms">Mula syif</string>
+    <string name="scanning_en">Scanning</string>
+    <!-- check with a Malay speaker -->
+    <string name="scanning_ms">Mengimbas</string>
+    <string name="cooling_en">Cooling down</string>
+    <!-- check with a Malay speaker -->
+    <string name="cooling_ms">Menyejukkan telefon</string>
+    <string name="end_shift_en">End shift</string>
+    <!-- check with a Malay speaker -->
+    <string name="end_shift_ms">Tamat syif</string>
+    <string name="end_of_shift_en">End of shift</string>
+    <!-- check with a Malay speaker -->
+    <string name="end_of_shift_ms">Syif tamat</string>
+    <string name="new_shift_en">New shift</string>
+    <!-- check with a Malay speaker -->
+    <string name="new_shift_ms">Syif baharu</string>
+    <string name="stop_to_end_en">Stop the vehicle to end shift</string>
+    <!-- check with a Malay speaker -->
+    <string name="stop_to_end_ms">Hentikan kenderaan untuk tamat syif</string>
+
+    <!-- Start shift self checks -->
+    <string name="check_camera_en">Camera permission</string>
+    <!-- check with a Malay speaker -->
+    <string name="check_camera_ms">Kebenaran kamera</string>
+    <string name="check_location_en">Location permission</string>
+    <!-- check with a Malay speaker -->
+    <string name="check_location_ms">Kebenaran lokasi</string>
+    <string name="check_gps_en">GPS fix</string>
+    <!-- check with a Malay speaker -->
+    <string name="check_gps_ms">Isyarat GPS</string>
+    <string name="check_charging_en">Charging</string>
+    <!-- check with a Malay speaker -->
+    <string name="check_charging_ms">Sedang dicas</string>
+    <string name="check_mount_en">Mount tilt</string>
+    <!-- check with a Malay speaker -->
+    <string name="check_mount_ms">Sudut pemasangan</string>
+    <string name="pass_en">Pass</string>
+    <!-- check with a Malay speaker -->
+    <string name="pass_ms">Lulus</string>
+    <string name="fail_en">Fail</string>
+    <!-- check with a Malay speaker -->
+    <string name="fail_ms">Gagal</string>
+    <string name="allow_permissions_en">Allow camera and location</string>
+    <!-- check with a Malay speaker -->
+    <string name="allow_permissions_ms">Benarkan kamera dan lokasi</string>
+    <!-- %1$s: measured tilt, %2$s and %3$s: allowed range, all in degrees -->
+    <string name="mount_tilt_value">%1$s° down, needs %2$s° to %3$s°</string>
+    <string name="mount_tilt_unknown">No tilt sensor reading</string>
+
+    <!-- Counters -->
+    <string name="defects_today_en">Defects today</string>
+    <!-- check with a Malay speaker -->
+    <string name="defects_today_ms">Kecacatan hari ini</string>
+    <string name="records_waiting_en">Records waiting</string>
+    <!-- check with a Malay speaker -->
+    <string name="records_waiting_ms">Rekod menunggu</string>
+    <string name="distance_en">Distance</string>
+    <!-- check with a Malay speaker -->
+    <string name="distance_ms">Jarak</string>
+    <string name="defects_found_en">Defects found</string>
+    <!-- check with a Malay speaker -->
+    <string name="defects_found_ms">Kecacatan ditemui</string>
+    <string name="uploads_completed_en">Uploads completed</string>
+    <!-- check with a Malay speaker -->
+    <string name="uploads_completed_ms">Muat naik selesai</string>
+    <!-- %1$s: distance in kilometres -->
+    <string name="distance_value">%1$s km</string>
+
+    <!-- Invented-data marking (plan rule 3) and debug-only controls -->
+    <string name="mock_label">MOCK</string>
+    <string name="mock_counts_note">Counts are placeholders until the queue exists</string>
+    <string name="debug_cooling_on">Debug: show cooling</string>
+    <string name="debug_cooling_off">Debug: show scanning</string>
 </resources>
