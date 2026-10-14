@@ -1,3 +1,55 @@
 <resources>
     <string name="app_name">BirdEyeV33</string>
+
+    <!-- Key states -->
+    <string name="start_shift">Start shift</string>
+    <string name="scanning">Scanning</string>
+    <string name="cooling">Cooling down</string>
+    <string name="end_shift">End shift</string>
+    <string name="end_of_shift">End of shift</string>
+    <string name="new_shift">New shift</string>
+    <string name="stop_to_end">Stop the vehicle to end shift</string>
+    <string name="end_reason_still">Vehicle is still</string>
+    <!-- %1$s: seconds without a GPS fix -->
+    <string name="end_reason_no_gps">No GPS for %1$s s</string>
+
+    <!-- Start shift self checks -->
+    <string name="check_camera">Camera permission</string>
+    <string name="check_location">Location permission</string>
+    <string name="check_gps">GPS</string>
+    <string name="check_charging">Charging</string>
+    <string name="check_mount">Mount tilt</string>
+    <string name="pass">Pass</string>
+    <string name="fail">Fail</string>
+    <string name="warning">Warning</string>
+    <string name="check_height">Camera height</string>
+    <!-- %1$s: camera height in metres -->
+    <string name="height_set">%1$s m, from local.properties</string>
+    <!-- %1$s: default camera height in metres -->
+    <string name="height_not_set">Height not set, using %1$s m</string>
+    <!-- GPS check detail. No numbers: the driver only needs ready or not. Accuracy goes to the log. -->
+    <string name="gps_ready">GPS ready</string>
+    <string name="gps_searching">Searching for GPS… wait a minute</string>
+    <string name="gps_location_off">Location is off. Turn it on in Settings.</string>
+    <string name="gps_needs_permission">Needs location permission</string>
+    <string name="allow_permissions">Allow camera and location</string>
+    <!-- %1$s: measured tilt, %2$s and %3$s: allowed downward range, all in degrees -->
+    <string name="mount_tilt_down">%1$s° down, needs %2$s° to %3$s° down</string>
+    <string name="mount_tilt_up">%1$s° up, needs %2$s° to %3$s° down</string>
+    <string name="mount_tilt_unknown">No tilt sensor reading</string>
+
+    <!-- Counters -->
+    <string name="defects_today">Defects today</string>
+    <string name="records_waiting">Records waiting</string>
+    <string name="distance">Distance</string>
+    <string name="defects_found">Defects found</string>
+    <string name="uploads_completed">Uploads completed</string>
+    <!-- %1$s: distance in kilometres -->
+    <string name="distance_value">%1$s km</string>
+
+    <!-- Invented-data marking (plan rule 3) and debug-only controls -->
+    <string name="mock_label">MOCK</string>
+    <string name="mock_counts_note">Counts are placeholders until the queue exists</string>
+    <string name="debug_cooling_on">Debug: show cooling</string>
+    <string name="debug_cooling_off">Debug: show scanning</string>
 </resources>
