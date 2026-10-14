@@ -7,5 +7,8 @@
   "end_shift_still_s": 10,
   "end_shift_no_fix_s": 30,
   "distance_max_accuracy_m": 20,
-  "scanning_brightness": 0.1
+  "scanning_brightness": 0.1,
+  "upload_max_records": 50,
+  "upload_backoff_s": 30,
+  "log_keep_days": 2
 }

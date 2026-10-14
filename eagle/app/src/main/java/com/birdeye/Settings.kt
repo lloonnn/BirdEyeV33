@@ -36,6 +36,9 @@ data class AppSettings(
     val endShiftNoFixS: Double,
     val distanceMaxAccuracyM: Double,
     val scanningBrightness: Float,
+    val uploadMaxRecords: Int,
+    val uploadBackoffS: Double,
+    val logKeepDays: Double,
 )
 
 object Settings {
@@ -70,6 +73,9 @@ object Settings {
             endShiftNoFixS = getDouble("end_shift_no_fix_s"),
             distanceMaxAccuracyM = getDouble("distance_max_accuracy_m"),
             scanningBrightness = getDouble("scanning_brightness").toFloat(),
+            uploadMaxRecords = getInt("upload_max_records"),
+            uploadBackoffS = getDouble("upload_backoff_s"),
+            logKeepDays = getDouble("log_keep_days"),
         )
     }
 }

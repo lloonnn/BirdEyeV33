@@ -24,19 +24,25 @@ import com.birdeye.ui.theme.PatrolSpacing
 
 /**
  * Readable in a one-second glance. Cooling down is a variant of this screen, not its own screen:
- * same layout, medium status colour and the cooling label. Counts are placeholders (MOCK) until the
- * queue exists in phase 2.
+ * same layout, medium status colour and the cooling label. Counts come from the Room queue.
  */
 @Composable
 fun ScanningScreen(
     cooling: Boolean,
     defectsToday: Int,
     recordsWaiting: Int,
+    uploadsCompleted: Int,
+    rejected: Int,
+    showMock: Boolean,
     endShiftReason: EndShiftReason?,
     noGpsSeconds: Int,
     showDebug: Boolean,
     onEndShift: () -> Unit,
     onToggleCooling: () -> Unit,
+    canAddFake: Boolean,
+    onAddFake: () -> Unit,
+    mockFails: Boolean,
+    onToggleMockFails: () -> Unit,
     preview: @Composable (Modifier) -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
@@ -62,7 +68,7 @@ fun ScanningScreen(
                         style = MaterialTheme.typography.headlineMedium,
                         color = if (cooling) BirdEye.status.medium else BirdEye.status.done,
                     )
-                    MockLabel()
+                    if (showMock) MockLabel()
                 }
             }
             Surface(
@@ -72,11 +78,11 @@ fun ScanningScreen(
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
                 Column(Modifier.padding(PatrolSpacing.md), verticalArrangement = Arrangement.spacedBy(PatrolSpacing.md)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.lg)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.md)) {
                         Counter(defectsToday.toString(), R.string.defects_today, Modifier.weight(1f))
                         Counter(recordsWaiting.toString(), R.string.records_waiting, Modifier.weight(1f))
+                        Counter(uploadsCompleted.toString(), R.string.uploads_completed, Modifier.weight(1f))
                     }
-                    MockLabel(note = stringResource(R.string.mock_counts_note))
                     PatrolButton(R.string.end_shift, onEndShift, enabled = endShiftReason != null)
                     // Always say why End shift is or is not available.
                     Text(
@@ -88,10 +94,23 @@ fun ScanningScreen(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     if (showDebug) {
-                        DebugButton(
-                            stringResource(if (cooling) R.string.debug_cooling_off else R.string.debug_cooling_on),
-                            onToggleCooling,
-                        )
+                        // Records the backend refused (4xx other than 429). Debug only: drivers never act on it.
+                        Text(stringResource(R.string.debug_rejected, rejected), style = MaterialTheme.typography.bodyLarge)
+                        DebugButton(stringResource(R.string.debug_add_fake), onAddFake, enabled = canAddFake)
+                        Row {
+                            DebugButton(
+                                stringResource(if (cooling) R.string.debug_cooling_off else R.string.debug_cooling_on),
+                                onToggleCooling,
+                                Modifier.weight(1f),
+                            )
+                            if (showMock) {
+                                DebugButton(
+                                    stringResource(if (mockFails) R.string.debug_mock_fail_off else R.string.debug_mock_fail_on),
+                                    onToggleMockFails,
+                                    Modifier.weight(1f),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -101,10 +120,11 @@ fun ScanningScreen(
 
 /** Debug builds only; English only because drivers never see it. */
 @Composable
-private fun DebugButton(label: String, onClick: () -> Unit) {
+private fun DebugButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     TextButton(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().heightIn(min = PatrolSpacing.touchTarget),
+        modifier = modifier.fillMaxWidth().heightIn(min = PatrolSpacing.touchTarget),
+        enabled = enabled,
     ) { Text(label, style = MaterialTheme.typography.labelLarge) }
 }
 
@@ -113,8 +133,8 @@ private fun DebugButton(label: String, onClick: () -> Unit) {
 internal fun ScanningPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = false, defectsToday = 0, recordsWaiting = 0, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true,
-            onEndShift = {}, onToggleCooling = {}, preview = { CameraPreview(it) },
+            cooling = false, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true,
+            onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }
 }
@@ -124,8 +144,8 @@ internal fun ScanningPreview() {
 internal fun CoolingPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = true, defectsToday = 0, recordsWaiting = 0, endShiftReason = null, noGpsSeconds = 30, showDebug = false,
-            onEndShift = {}, onToggleCooling = {}, preview = { CameraPreview(it) },
+            cooling = true, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = null, noGpsSeconds = 30, showDebug = false,
+            onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }
 }
