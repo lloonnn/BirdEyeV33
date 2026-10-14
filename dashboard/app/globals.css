@@ -1,5 +1,5 @@
 /*
- * Bird Eye v33 theme for the dashboard (Next.js + Tailwind CSS 4 + shadcn/ui + Bklit).
+ * Bird Eye v33 theme for the dashboard (Next.js + Tailwind CSS 4 + shadcn/ui + Recharts).
  * The same colour values are mirrored in the Android Compose theme.
  *
  * HOW TO APPLY
@@ -54,7 +54,7 @@
   --status-done: #15803d;     /* confirmed fixed, scanning, on target */
   --status-neutral: #a3a3a3;  /* scheduled, idle */
 
-  /* Charts (Bklit reads these) */
+  /* Charts (Recharts reads these) */
   --chart-1: #171717;         /* fixed */
   --chart-2: #a3a3a3;         /* detected */
   --chart-3: #d97706;
