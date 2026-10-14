@@ -1,21 +1,11 @@
 import type { MapPin, PinTone } from "@/components/map/leaflet-map"
 import type { Defect } from "@/lib/api-types"
-import { bandLabel, statusLabel, typeLabel } from "@/lib/labels"
+import { bandLabel, statusLabel, typeName } from "@/lib/labels"
 
-// Pin colour follows brief section 3: open defects by their urgency band,
-// confirmed in green, and scheduled, fixed or rejected in grey, since their
-// urgency no longer asks for action.
+// Colour means urgency. Scheduled defects are grey: their repair is already
+// booked, so urgency no longer asks for action. The hover text names the status.
 export function pinTone(defect: Defect): PinTone {
-  switch (defect.status) {
-    case "confirmed":
-      return "done"
-    case "scheduled":
-    case "fixed":
-    case "rejected":
-      return "neutral"
-    default:
-      return defect.urgency_band
-  }
+  return defect.status === "scheduled" ? "neutral" : defect.urgency_band
 }
 
 export function toPin(defect: Defect): MapPin {
@@ -24,7 +14,6 @@ export function toPin(defect: Defect): MapPin {
     lat: defect.lat,
     lon: defect.lon,
     tone: pinTone(defect),
-    shape: defect.type === "pothole" ? "filled" : "ring",
-    label: `${typeLabel[defect.type]} · ${bandLabel[defect.urgency_band]} · ${statusLabel[defect.status]}`,
+    label: `${typeName(defect.type)} · ${bandLabel[defect.urgency_band]} · ${statusLabel[defect.status]}`,
   }
 }

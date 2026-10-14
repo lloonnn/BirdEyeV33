@@ -19,8 +19,6 @@ export type MapPin = {
   lat: number
   lon: number
   tone: PinTone
-  // Filled circle or hollow ring, so the pin reads without colour.
-  shape: "filled" | "ring"
   // Hover text, in words.
   label: string
 }
@@ -28,6 +26,9 @@ export type MapPin = {
 // Ask the map to fly to a point. `seq` changes on every request, so flying
 // to the same point twice still moves the map.
 export type MapFocus = { lat: number; lon: number; seq: number }
+
+// Ask the map to zoom one step in (+1) or out (-1); `seq` changes each time.
+export type MapZoom = { delta: 1 | -1; seq: number }
 
 type Props = {
   pins: MapPin[]
@@ -37,13 +38,15 @@ type Props = {
   // Drawn with a halo, so the open defect stands out.
   selectedId?: number | null
   focus?: MapFocus | null
+  // Zoom comes from the page's own buttons; Leaflet's control is not shown.
+  zoom?: MapZoom | null
 }
 
 function toBbox(bounds: L.LatLngBounds): Bbox {
   return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
 }
 
-export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId, focus }: Props) {
+export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId, focus, zoom }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const pinLayerRef = useRef<L.LayerGroup | null>(null)
@@ -63,7 +66,6 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
       maxZoom: mapView.maxZoom,
       zoomControl: false,
     })
-    L.control.zoom({ position: "bottomright" }).addTo(map)
     L.tileLayer(mapTiles.url, {
       attribution: mapTiles.attribution,
       maxZoom: mapView.maxZoom,
@@ -102,23 +104,14 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
           interactive: false,
         }).addTo(layer)
       }
-      const marker =
-        pin.shape === "filled"
-          ? L.circleMarker([pin.lat, pin.lon], {
-              radius: 7,
-              color: background,
-              weight: 1.5,
-              fillColor: color,
-              fillOpacity: 0.95,
-            })
-          : L.circleMarker([pin.lat, pin.lon], {
-              radius: 6,
-              color,
-              weight: 3,
-              // Transparent fill keeps the centre of the ring hoverable.
-              fillColor: color,
-              fillOpacity: 0,
-            })
+      // Filled circle with a dark outline, so it reads on any tile.
+      const marker = L.circleMarker([pin.lat, pin.lon], {
+        radius: 7,
+        color: background,
+        weight: 1.5,
+        fillColor: color,
+        fillOpacity: 0.95,
+      })
       marker.bindTooltip(pin.label, {
         direction: "top",
         offset: [0, -8],
@@ -128,6 +121,12 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
       marker.addTo(layer)
     }
   }, [pins, selectedId])
+
+  useEffect(() => {
+    if (!zoom || !mapRef.current) return
+    if (zoom.delta > 0) mapRef.current.zoomIn()
+    else mapRef.current.zoomOut()
+  }, [zoom])
 
   useEffect(() => {
     if (!focus || !mapRef.current) return

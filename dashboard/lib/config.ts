@@ -18,7 +18,7 @@ export const mapTiles = {
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 } as const
 
-// First view: the pilot precinct in City of Elmina. Starting value, to be tuned.
+// First view: the centre of the pilot area. Starting value, to be tuned.
 export const mapView = {
   center: [3.185, 101.515] as [number, number],
   zoom: 15,
@@ -37,14 +37,26 @@ export const defectsPollMs = 30_000
 // would with a real server. Starting value, to be tuned.
 export const mockLatencyMs = 250
 
-// The pilot precinct as a bbox (minLon, minLat, maxLon, maxLat), from the
-// brief's seed area. The Fix first list and stat tiles count the whole
-// precinct, not just the map view. A query area, not a township boundary
-// setting (out of scope). Starting value, to be tuned.
-export const precinctBbox: [number, number, number, number] = [101.5, 3.17, 101.53, 3.2]
+// The pilot area as a bbox (minLon, minLat, maxLon, maxLat), from the brief's
+// seed area. The Most urgent list and the summary numbers count this whole
+// area, not just the map view. A query area, not a township boundary setting
+// (out of scope). Starting value, to be tuned.
+export const areaBounds: [number, number, number, number] = [101.5, 3.17, 101.53, 3.2]
 
-// Rows in the Fix first list (brief section 5.1).
+// Rows in the Most urgent list (brief section 5.1).
 export const fixFirstCount = 5
 
 // Zoom when a list row flies the map to a defect. Starting value, to be tuned.
 export const flyToZoom = 17
+
+// Glass on floating panels. Set false to put .no-glass on the page root:
+// solid panels, no blur, same layout. Use it if panning stutters.
+export const glassPanels = true
+
+// Shown for a fixed defect: about 3 clean passes confirm a repair
+// (decision 41). The backend decides; this only words the panel. Starting value.
+export const cleanPassesToConfirm = 3
+
+// "Why it ranks here" lists the urgency terms at or above this value.
+// Starting value, to be tuned.
+export const whyTermMin = 0.8

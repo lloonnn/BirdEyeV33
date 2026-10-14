@@ -3,13 +3,9 @@
 // first seen to last seen, so the panel's history matches the defect.
 
 import type { Defect, Sighting } from "@/lib/api-types"
+import { malaysiaIso } from "@/lib/mocks/iso"
 
 const DEVICES = ["car-01", "car-02", "car-03", "van-04", "car-05", "van-06"]
-
-// ISO 8601 with the +08:00 offset, as the contract's examples use.
-function malaysiaIso(ms: number): string {
-  return new Date(ms + 8 * 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, "+08:00")
-}
 
 export function mockSightings(defect: Defect): Sighting[] {
   const first = Date.parse(defect.first_seen)

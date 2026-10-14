@@ -1,10 +1,10 @@
 import type { PinTone } from "@/components/map/leaflet-map"
-import { pinTone } from "@/components/overview/defect-pins"
 import type { Defect, DefectType, UrgencyBand } from "@/lib/api-types"
-import { bandLabel, statusLabel, typeLabel } from "@/lib/labels"
+import { bandLabel, statusLabel, typeName } from "@/lib/labels"
 import { cn } from "@/lib/utils"
 
-// Shapes and colour badges, each paired with its word (brief section 3).
+// Colour means urgency only. Type and status are plain text, never coloured.
+// Every colour is paired with its word (brief section 3).
 
 export const toneText: Record<PinTone, string> = {
   high: "text-status-high",
@@ -22,24 +22,10 @@ export function Dot({ className }: { className?: string }) {
   )
 }
 
-export function Ring({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 12 12" className={cn("size-3 shrink-0", className)} aria-hidden>
-      <circle cx="6" cy="6" r="4.25" fill="none" stroke="currentColor" strokeWidth="2.5" />
-    </svg>
-  )
-}
+const badge = "inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2 py-0.5 text-xs"
 
-const badge = "inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-0.5 text-xs"
-
-// Pothole as a filled circle, crack as a ring, as on the map.
 export function TypeBadge({ type }: { type: DefectType }) {
-  return (
-    <span className={badge}>
-      {type === "pothole" ? <Dot /> : <Ring />}
-      {typeLabel[type]}
-    </span>
-  )
+  return <span className={badge}>{typeName(type)}</span>
 }
 
 export function UrgencyBadge({ band }: { band: UrgencyBand }) {
@@ -51,12 +37,6 @@ export function UrgencyBadge({ band }: { band: UrgencyBand }) {
   )
 }
 
-// Status word with the pin colour it shows on the map.
 export function StatusBadge({ defect }: { defect: Defect }) {
-  return (
-    <span className={badge}>
-      <Dot className={toneText[pinTone(defect)]} />
-      {statusLabel[defect.status]}
-    </span>
-  )
+  return <span className={badge}>{statusLabel[defect.status]}</span>
 }

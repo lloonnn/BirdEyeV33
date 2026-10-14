@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
 
-import { PagePlaceholder } from "@/components/page-placeholder"
+import { ReviewQueue } from "@/components/review/review-queue"
 
 export const metadata: Metadata = { title: "Review" }
 
 export default function ReviewPage() {
-  return <PagePlaceholder title="Review" />
+  return <ReviewQueue />
 }

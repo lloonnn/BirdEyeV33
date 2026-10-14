@@ -43,7 +43,7 @@ export type Sighting = {
 // GET /defects/{id}: the defect object plus its sightings (decision 66).
 export type DefectDetail = Defect & { sightings: Sighting[] }
 
-// `bbox` for GET /defects and GET /coverage: minLon, minLat, maxLon, maxLat.
+// `bbox` for GET /defects: minLon, minLat, maxLon, maxLat.
 export type Bbox = [number, number, number, number]
 
 // Query for GET /defects (decision 63). `bbox` is required.
@@ -66,3 +66,48 @@ export class ApiError extends Error {
     this.name = "ApiError"
   }
 }
+
+export type WorkOrderStatus = "pending_approval" | "approved" | "rejected" | "done"
+
+// Work order object (decision 70).
+export type WorkOrder = {
+  id: number
+  status: WorkOrderStatus
+  crew_type: string
+  description: string
+  defect_ids: number[]
+  created_at: string
+  approved_at: string | null
+}
+
+// Detection record, as the phone uploads it (api-contract.md).
+export type DetectionRecord = {
+  client_id: string
+  device_id: string
+  captured_at: string
+  defect_type: DefectType
+  confidence: number
+  band: "save" | "review"
+  bbox: [number, number, number, number]
+  vehicle: { lat: number; lon: number; gps_accuracy_m: number; heading_deg: number; speed_kmh: number }
+  distance_ahead_m: number
+  defect_point: { lat: number; lon: number }
+  model_version: string
+  urgent: boolean
+  crop_file: string
+}
+
+export type ReviewStatus = "pending" | "answered"
+
+// GET /reviews item (decision 68): the detection record plus `crop_url`.
+export type Review = {
+  id: number
+  status: ReviewStatus
+  sighting: DetectionRecord & { crop_url: string }
+}
+
+// POST /reviews/{id} body (decision 69). `class` is required for wrong_class.
+export type ReviewAnswer =
+  | { answer: "correct" }
+  | { answer: "not_defect" }
+  | { answer: "wrong_class"; class: DefectType }

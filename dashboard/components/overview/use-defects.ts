@@ -21,8 +21,9 @@ export type DefectsState = {
 }
 
 // Loads GET /defects for `query` (null waits), and reloads on the poll
-// interval because the contract has no push channel.
-export function useDefects(query: DefectsQuery | null): DefectsState {
+// interval because the contract has no push channel. A new `refreshKey`
+// reloads at once, for example after an action changes a defect.
+export function useDefects(query: DefectsQuery | null, refreshKey = 0): DefectsState {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [failure, setFailure] = useState<Failure | null>(null)
   const [pollTick, setPollTick] = useState(0)
@@ -50,7 +51,7 @@ export function useDefects(query: DefectsQuery | null): DefectsState {
         setFailure({ key, error })
       })
     return () => controller.abort()
-  }, [key, pollTick])
+  }, [key, pollTick, refreshKey])
 
   return {
     defects: loaded?.defects ?? null,
