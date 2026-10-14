@@ -155,7 +155,9 @@ fun CameraPreview(modifier: Modifier = Modifier) {
         val useCase = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
         val future = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
+        var disposed = false
         future.addListener({
+            if (disposed) return@addListener
             try {
                 provider = future.get().also {
                     it.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, useCase)
@@ -164,7 +166,10 @@ fun CameraPreview(modifier: Modifier = Modifier) {
                 Log.e("BirdEye", "Camera bind failed", e)
             }
         }, ContextCompat.getMainExecutor(context))
-        onDispose { provider?.unbind(useCase) }
+        onDispose {
+            disposed = true
+            provider?.unbind(useCase)
+        }
     }
     AndroidView(factory = { previewView }, modifier = modifier)
 }
