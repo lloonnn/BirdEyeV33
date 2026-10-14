@@ -25,15 +25,17 @@ data class ConfigV0(
     val duplicateTimeS: Double,
 )
 
-/** App-only starting values; not contract fields. */
+/** App-only starting values; not contract fields. Camera height is per phone, in local.properties. */
 data class AppSettings(
-    val cameraHeightM: Double,
     val mountTiltMinDeg: Double,
     val mountTiltMaxDeg: Double,
     val gpsFixMaxAgeS: Double,
+    val gpsFixMaxAccuracyM: Double,
     val stillSpeedMaxMps: Double,
     val endShiftStillS: Double,
+    val endShiftNoFixS: Double,
     val distanceMaxAccuracyM: Double,
+    val scanningBrightness: Float,
 )
 
 object Settings {
@@ -59,13 +61,15 @@ object Settings {
 
     fun app(context: Context): AppSettings = read(context, "app_settings.json").run {
         AppSettings(
-            cameraHeightM = getDouble("camera_height_m"),
             mountTiltMinDeg = getDouble("mount_tilt_min_deg"),
             mountTiltMaxDeg = getDouble("mount_tilt_max_deg"),
             gpsFixMaxAgeS = getDouble("gps_fix_max_age_s"),
+            gpsFixMaxAccuracyM = getDouble("gps_fix_max_accuracy_m"),
             stillSpeedMaxMps = getDouble("still_speed_max_mps"),
             endShiftStillS = getDouble("end_shift_still_s"),
+            endShiftNoFixS = getDouble("end_shift_no_fix_s"),
             distanceMaxAccuracyM = getDouble("distance_max_accuracy_m"),
+            scanningBrightness = getDouble("scanning_brightness").toFloat(),
         )
     }
 }

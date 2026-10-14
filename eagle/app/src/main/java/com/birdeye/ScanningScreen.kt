@@ -32,7 +32,8 @@ fun ScanningScreen(
     cooling: Boolean,
     defectsToday: Int,
     recordsWaiting: Int,
-    canEndShift: Boolean,
+    endShiftReason: EndShiftReason?,
+    noGpsSeconds: Int,
     showDebug: Boolean,
     onEndShift: () -> Unit,
     onToggleCooling: () -> Unit,
@@ -55,9 +56,8 @@ fun ScanningScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.md),
                 ) {
-                    BilingualLabel(
-                        if (cooling) R.string.cooling_en else R.string.scanning_en,
-                        if (cooling) R.string.cooling_ms else R.string.scanning_ms,
+                    StateLabel(
+                        if (cooling) R.string.cooling else R.string.scanning,
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.headlineMedium,
                         color = if (cooling) BirdEye.status.medium else BirdEye.status.done,
@@ -73,14 +73,20 @@ fun ScanningScreen(
             ) {
                 Column(Modifier.padding(PatrolSpacing.md), verticalArrangement = Arrangement.spacedBy(PatrolSpacing.md)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.lg)) {
-                        Counter(defectsToday.toString(), R.string.defects_today_en, R.string.defects_today_ms, Modifier.weight(1f))
-                        Counter(recordsWaiting.toString(), R.string.records_waiting_en, R.string.records_waiting_ms, Modifier.weight(1f))
+                        Counter(defectsToday.toString(), R.string.defects_today, Modifier.weight(1f))
+                        Counter(recordsWaiting.toString(), R.string.records_waiting, Modifier.weight(1f))
                     }
                     MockLabel(note = stringResource(R.string.mock_counts_note))
-                    PatrolButton(R.string.end_shift_en, R.string.end_shift_ms, onEndShift, enabled = canEndShift)
-                    if (!canEndShift) {
-                        BilingualLabel(R.string.stop_to_end_en, R.string.stop_to_end_ms, style = MaterialTheme.typography.bodyLarge)
-                    }
+                    PatrolButton(R.string.end_shift, onEndShift, enabled = endShiftReason != null)
+                    // Always say why End shift is or is not available.
+                    Text(
+                        when (endShiftReason) {
+                            EndShiftReason.Still -> stringResource(R.string.end_reason_still)
+                            EndShiftReason.NoGps -> stringResource(R.string.end_reason_no_gps, noGpsSeconds.toString())
+                            null -> stringResource(R.string.stop_to_end)
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                     if (showDebug) {
                         DebugButton(
                             stringResource(if (cooling) R.string.debug_cooling_off else R.string.debug_cooling_on),
@@ -104,10 +110,10 @@ private fun DebugButton(label: String, onClick: () -> Unit) {
 
 @Preview(name = "Scanning, still", widthDp = 400, heightDp = 860)
 @Composable
-private fun ScanningPreview() {
+internal fun ScanningPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = false, defectsToday = 0, recordsWaiting = 0, canEndShift = true, showDebug = true,
+            cooling = false, defectsToday = 0, recordsWaiting = 0, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true,
             onEndShift = {}, onToggleCooling = {}, preview = { CameraPreview(it) },
         )
     }
@@ -115,10 +121,10 @@ private fun ScanningPreview() {
 
 @Preview(name = "Cooling down variant, moving", widthDp = 400, heightDp = 860)
 @Composable
-private fun CoolingPreview() {
+internal fun CoolingPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = true, defectsToday = 0, recordsWaiting = 0, canEndShift = false, showDebug = false,
+            cooling = true, defectsToday = 0, recordsWaiting = 0, endShiftReason = null, noGpsSeconds = 30, showDebug = false,
             onEndShift = {}, onToggleCooling = {}, preview = { CameraPreview(it) },
         )
     }

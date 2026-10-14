@@ -21,7 +21,21 @@ Run from `eagle/`. These are standard Android Gradle plugin tasks.
 ./gradlew lint                          # Android lint
 ```
 
-Only the template example tests exist. Replay mode, the frame pipeline and the background services are not set up yet.
+Only the template example tests exist, plus `PreviewRenderTest`, which renders each `@Preview` on a device. Replay mode, the frame pipeline and the background services are not set up yet.
+
+## Per-phone settings
+
+Each phone's own values go in `eagle/local.properties`, which is not committed. Rebuild after changing them.
+
+```properties
+birdeye.cameraHeightM=1.2   # camera height above the road in metres, measured in the mount
+```
+
+If `birdeye.cameraHeightM` is missing, the app uses 1.0 m, shows "Height not set" as a warning on Start shift, and logs how to set it. Reason: the distance-ahead formula needs the real height, and each vehicle differs.
+
+## Debug and release builds
+
+The demo uses a release build. Debug-only controls, such as the cooling toggle on the Scanning screen, are shown only when `BuildConfig.DEBUG` is true, so they are hidden in the demo. Reason: a driver must never see test controls.
 
 ## Theme
 
@@ -30,7 +44,7 @@ Only the template example tests exist. Replay mode, the frame pipeline and the b
 - Token values must match `../dashboard/app/globals.css`. Change both in the same commit. Reason: the app and dashboard read as one product.
 - Dark by default. Reason: less windscreen glare and less screen heat.
 - Touch targets are at least 56 dp. Reason: the driver reads the screen in a one-second glance.
-- Key states are labelled in English and Malay. Reason: drivers may read either.
+- Labels are in English only. Reason: the team decided on 14 Oct to drop Malay labels for the prototype.
 - Status colour is always paired with a word or icon. Reason: colour alone is not readable for everyone.
 
 ## Libraries to add per feature

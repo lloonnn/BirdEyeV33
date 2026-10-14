@@ -28,11 +28,12 @@ import com.birdeye.ui.theme.PatrolSpacing
 data class StartChecks(
     val camera: Boolean,
     val location: Boolean,
-    val gpsFix: Boolean,
+    /** Null while location permission is missing. */
+    val gps: GpsCheck?,
     val charging: Boolean,
     val mount: Boolean,
 ) {
-    val allPass get() = camera && location && gpsFix && charging && mount
+    val allPass get() = camera && location && gps is GpsCheck.Ok && charging && mount
 }
 
 /**
@@ -44,6 +45,8 @@ fun StartShiftScreen(
     checks: StartChecks,
     tilt: Tilt?,
     settings: AppSettings,
+    cameraHeightM: Double,
+    cameraHeightSet: Boolean,
     onAllowPermissions: () -> Unit,
     onStart: () -> Unit,
     preview: @Composable (Modifier) -> Unit,
@@ -58,8 +61,8 @@ fun StartShiftScreen(
         verticalArrangement = Arrangement.spacedBy(PatrolSpacing.md),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            BilingualLabel(
-                R.string.start_shift_en, R.string.start_shift_ms,
+            StateLabel(
+                R.string.start_shift,
                 Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
             )
             MockLabel()
@@ -79,25 +82,43 @@ fun StartShiftScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        CheckRow(R.string.check_camera_en, R.string.check_camera_ms, checks.camera)
-        CheckRow(R.string.check_location_en, R.string.check_location_ms, checks.location)
-        CheckRow(R.string.check_gps_en, R.string.check_gps_ms, checks.gpsFix)
-        CheckRow(R.string.check_charging_en, R.string.check_charging_ms, checks.charging)
+        CheckRow(R.string.check_camera, checkOf(checks.camera))
+        CheckRow(R.string.check_location, checkOf(checks.location))
         CheckRow(
-            R.string.check_mount_en, R.string.check_mount_ms, checks.mount,
+            R.string.check_gps,
+            checkOf(checks.gps is GpsCheck.Ok),
+            detail = when (val gps = checks.gps) {
+                null -> stringResource(R.string.gps_needs_permission)
+                is GpsCheck.Ok -> stringResource(R.string.gps_ready)
+                GpsCheck.LocationOff -> stringResource(R.string.gps_location_off)
+                // No fix and a too-rough fix need the same action from the driver: wait.
+                GpsCheck.NoFix, is GpsCheck.TooInaccurate -> stringResource(R.string.gps_searching)
+            },
+        )
+        CheckRow(R.string.check_charging, checkOf(checks.charging))
+        CheckRow(
+            R.string.check_mount, checkOf(checks.mount),
+            // Upward tilt shows as "up" rather than a negative number of degrees down.
             detail = tilt?.let {
                 stringResource(
-                    R.string.mount_tilt_value,
-                    "%.1f".format(it.pitchDownDeg),
+                    if (it.pitchDownDeg < 0) R.string.mount_tilt_up else R.string.mount_tilt_down,
+                    "%.1f".format(kotlin.math.abs(it.pitchDownDeg)),
                     "%.0f".format(settings.mountTiltMinDeg),
                     "%.0f".format(settings.mountTiltMaxDeg),
                 )
             } ?: stringResource(R.string.mount_tilt_unknown),
         )
+        // A warning, not a fail: the shift can run, but distance ahead uses the default height.
+        val height = "%.2f".format(cameraHeightM)
+        CheckRow(
+            R.string.check_height,
+            if (cameraHeightSet) CheckState.Pass else CheckState.Warn,
+            detail = stringResource(if (cameraHeightSet) R.string.height_set else R.string.height_not_set, height),
+        )
         if (!checks.camera || !checks.location) {
-            PatrolButton(R.string.allow_permissions_en, R.string.allow_permissions_ms, onAllowPermissions, outlined = true)
+            PatrolButton(R.string.allow_permissions, onAllowPermissions, outlined = true)
         }
-        PatrolButton(R.string.start_shift_en, R.string.start_shift_ms, onStart, enabled = checks.allPass)
+        PatrolButton(R.string.start_shift, onStart, enabled = checks.allPass)
     }
 }
 
@@ -107,18 +128,20 @@ fun mountPasses(tilt: Tilt?, settings: AppSettings): Boolean =
 
 // Preview-only values. Not real readings.
 internal val PreviewSettings = AppSettings(
-    cameraHeightM = 1.3, mountTiltMinDeg = 2.0, mountTiltMaxDeg = 20.0, gpsFixMaxAgeS = 5.0,
-    stillSpeedMaxMps = 0.5, endShiftStillS = 10.0, distanceMaxAccuracyM = 20.0,
+    mountTiltMinDeg = 2.0, mountTiltMaxDeg = 20.0, gpsFixMaxAgeS = 5.0, gpsFixMaxAccuracyM = 10.0, stillSpeedMaxMps = 0.5,
+    endShiftStillS = 10.0, endShiftNoFixS = 30.0, distanceMaxAccuracyM = 20.0, scanningBrightness = 0.1f,
 )
 
 @Preview(name = "Start shift, checks failing", widthDp = 400, heightDp = 900)
 @Composable
-private fun StartShiftFailingPreview() {
+internal fun StartShiftFailingPreview() {
     BirdEyeTheme(darkTheme = true) {
         StartShiftScreen(
-            checks = StartChecks(camera = false, location = false, gpsFix = false, charging = true, mount = false),
+            checks = StartChecks(camera = false, location = false, gps = null, charging = true, mount = false),
             tilt = Tilt(pitchDownDeg = 31f, rollScreenDeg = 4f),
             settings = PreviewSettings,
+            cameraHeightM = 1.0,
+            cameraHeightSet = false,
             onAllowPermissions = {},
             onStart = {},
             preview = { CameraPreview(it) },
@@ -128,12 +151,14 @@ private fun StartShiftFailingPreview() {
 
 @Preview(name = "Start shift, all pass", widthDp = 400, heightDp = 900)
 @Composable
-private fun StartShiftPassingPreview() {
+internal fun StartShiftPassingPreview() {
     BirdEyeTheme(darkTheme = true) {
         StartShiftScreen(
-            checks = StartChecks(camera = true, location = true, gpsFix = true, charging = true, mount = true),
+            checks = StartChecks(camera = true, location = true, gps = GpsCheck.Ok(6f), charging = true, mount = true),
             tilt = Tilt(pitchDownDeg = 8f, rollScreenDeg = 0f),
             settings = PreviewSettings,
+            cameraHeightM = 1.3,
+            cameraHeightSet = true,
             onAllowPermissions = {},
             onStart = {},
             preview = { CameraPreview(it) },

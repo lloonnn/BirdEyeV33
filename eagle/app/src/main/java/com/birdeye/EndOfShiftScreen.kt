@@ -32,24 +32,24 @@ fun EndOfShiftScreen(distanceKm: Double, defectsFound: Int, uploadsCompleted: In
         verticalArrangement = Arrangement.spacedBy(PatrolSpacing.lg),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            BilingualLabel(
-                R.string.end_of_shift_en, R.string.end_of_shift_ms,
+            StateLabel(
+                R.string.end_of_shift,
                 Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
             )
             MockLabel()
         }
-        Counter(stringResource(R.string.distance_value, "%.2f".format(distanceKm)), R.string.distance_en, R.string.distance_ms)
-        Counter(defectsFound.toString(), R.string.defects_found_en, R.string.defects_found_ms)
-        Counter(uploadsCompleted.toString(), R.string.uploads_completed_en, R.string.uploads_completed_ms)
+        Counter(stringResource(R.string.distance_value, "%.2f".format(distanceKm)), R.string.distance)
+        Counter(defectsFound.toString(), R.string.defects_found)
+        Counter(uploadsCompleted.toString(), R.string.uploads_completed)
         MockLabel(note = stringResource(R.string.mock_counts_note))
         Spacer(Modifier.weight(1f))
-        PatrolButton(R.string.new_shift_en, R.string.new_shift_ms, onNewShift)
+        PatrolButton(R.string.new_shift, onNewShift)
     }
 }
 
 @Preview(name = "End of shift", widthDp = 400, heightDp = 860)
 @Composable
-private fun EndOfShiftPreview() {
+internal fun EndOfShiftPreview() {
     BirdEyeTheme(darkTheme = true) {
         EndOfShiftScreen(distanceKm = 12.4, defectsFound = 0, uploadsCompleted = 0, onNewShift = {})
     }

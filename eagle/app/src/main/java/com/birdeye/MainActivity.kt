@@ -1,8 +1,9 @@
 package com.birdeye
 
 import android.Manifest
-import android.content.pm.ApplicationInfo
+import android.app.Activity
 import android.os.Bundle
+import android.util.Log
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -34,6 +35,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!BuildConfig.CAMERA_HEIGHT_SET) {
+            Log.w(
+                "BirdEye",
+                "Camera height not set, using ${BuildConfig.CAMERA_HEIGHT_M} m. " +
+                    "Set birdeye.cameraHeightM in eagle/local.properties and rebuild.",
+            )
+        }
         enableEdgeToEdge()
         setContent {
             BirdEyeTheme {
@@ -68,7 +76,6 @@ fun BirdEyeApp(shift: ShiftViewModel) {
             value = SystemClock.elapsedRealtime()
         }
     }
-    val debuggable = remember { context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 }
     val preview: @Composable (Modifier) -> Unit = { CameraPreview(it) }
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -78,7 +85,7 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                 val checks = StartChecks(
                     camera = cameraGranted,
                     location = locationGranted,
-                    gpsFix = locationGranted && shift.hasFix(now),
+                    gps = if (locationGranted) shift.gpsCheck(now) else null,
                     charging = rememberCharging(),
                     mount = mountPasses(tilt, shift.settings),
                 )
@@ -86,6 +93,8 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                     checks = checks,
                     tilt = tilt,
                     settings = shift.settings,
+                    cameraHeightM = BuildConfig.CAMERA_HEIGHT_M,
+                    cameraHeightSet = BuildConfig.CAMERA_HEIGHT_SET,
                     onAllowPermissions = {
                         launcher.launch(
                             arrayOf(
@@ -101,15 +110,17 @@ fun BirdEyeApp(shift: ShiftViewModel) {
             }
 
             Screen.Scanning -> {
-                KeepScreenOn()
+                ScanningWindow(brightness = shift.settings.scanningBrightness)
                 // Back must not drop a running shift; End shift is the only way out.
                 BackHandler {}
                 ScanningScreen(
                     cooling = shift.cooling,
                     defectsToday = 0, // placeholder until the queue exists (phase 2), shown with MOCK
                     recordsWaiting = 0, // placeholder until the queue exists (phase 2), shown with MOCK
-                    canEndShift = shift.isStill(now),
-                    showDebug = debuggable,
+                    endShiftReason = shift.endShiftReason(now),
+                    noGpsSeconds = shift.settings.endShiftNoFixS.toInt(),
+                    // Debug builds only. The demo uses a release build, so the toggle is hidden there.
+                    showDebug = BuildConfig.DEBUG,
                     onEndShift = { shift.endShift() },
                     onToggleCooling = { shift.cooling = !shift.cooling },
                     preview = preview,
@@ -126,12 +137,23 @@ fun BirdEyeApp(shift: ShiftViewModel) {
     }
 }
 
-/** Scanning runs with the app on screen (plan, tier 1), so the screen stays on while it shows. */
+/**
+ * Scanning runs with the app on screen (plan, tier 1): keep the screen on, and dim it to
+ * scanning_brightness to cut heat. The previous brightness comes back when Scanning ends.
+ */
 @Composable
-private fun KeepScreenOn() {
+private fun ScanningWindow(brightness: Float) {
     val view = LocalView.current
-    DisposableEffect(view) {
+    val window = (LocalContext.current as? Activity)?.window
+    DisposableEffect(view, window, brightness) {
         view.keepScreenOn = true
-        onDispose { view.keepScreenOn = false }
+        val previous = window?.attributes?.screenBrightness
+        window?.let { it.attributes = it.attributes.apply { screenBrightness = brightness } }
+        onDispose {
+            view.keepScreenOn = false
+            if (window != null && previous != null) {
+                window.attributes = window.attributes.apply { screenBrightness = previous }
+            }
+        }
     }
 }

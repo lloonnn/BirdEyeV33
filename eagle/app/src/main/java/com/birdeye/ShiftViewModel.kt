@@ -9,6 +9,8 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +20,21 @@ import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 
 enum class Screen { StartShift, Scanning, EndOfShift }
+
+/** Result of the Start shift GPS check, with the reason when it fails. */
+sealed interface GpsCheck {
+    /** A fresh GPS_PROVIDER fix within gps_fix_max_accuracy_m. */
+    data class Ok(val accuracyM: Float) : GpsCheck
+    /** Location is switched off on the phone. */
+    data object LocationOff : GpsCheck
+    /** No fresh fix from the GPS chip. Typical indoors, where only WiFi or cell location works. */
+    data object NoFix : GpsCheck
+    /** A fresh fix, but less accurate than gps_fix_max_accuracy_m. */
+    data class TooInaccurate(val accuracyM: Float) : GpsCheck
+}
+
+/** Why End shift is allowed. Null means it is not: the vehicle may be moving. */
+enum class EndShiftReason { Still, NoGps }
 
 /**
  * Shift state and GPS, kept in a ViewModel so a rotation does not lose the shift or its distance.
@@ -46,6 +63,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     var distanceM by mutableStateOf(0.0)
         private set
 
+    private var shiftStartMs = 0L
     private var lastDistanceFix: Location? = null
     private var listening = false
     private val locationManager = app.getSystemService(LocationManager::class.java)
@@ -88,6 +106,22 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
             lastDistanceFix = location
         }
         lastFix = location
+        // The screen shows only ready or searching; the real accuracy is here for testing (adb logcat -s BirdEye).
+        Log.d("BirdEye", "GPS fix from ${location.provider}: accuracy ${location.accuracy} m, limit ${settings.gpsFixMaxAccuracyM} m")
+    }
+
+    /**
+     * Start shift GPS check. Passes only on a fix from LocationManager.GPS_PROVIDER, newer than
+     * gps_fix_max_age_s and with accuracy at or under gps_fix_max_accuracy_m. Reason: WiFi and cell
+     * positions are tens of metres off, too coarse to place a defect.
+     */
+    fun gpsCheck(nowMs: Long): GpsCheck {
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) return GpsCheck.LocationOff
+        val fix = lastFix
+        if (fix == null || fix.provider != LocationManager.GPS_PROVIDER || !hasFix(nowMs) || !fix.hasAccuracy()) {
+            return GpsCheck.NoFix
+        }
+        return if (fix.accuracy <= settings.gpsFixMaxAccuracyM) GpsCheck.Ok(fix.accuracy) else GpsCheck.TooInaccurate(fix.accuracy)
     }
 
     fun hasFix(nowMs: Long): Boolean {
@@ -95,20 +129,31 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
         return nowMs - fix.elapsedRealtimeNanos / 1_000_000 <= settings.gpsFixMaxAgeS * 1000
     }
 
-    /** End shift is allowed only with a recent fix and speed at or below the still speed for end_shift_still_s. */
-    fun isStill(nowMs: Long): Boolean {
-        val since = stillSinceMs ?: return false
-        return hasFix(nowMs) && nowMs - since >= settings.endShiftStillS * 1000
+    /**
+     * End shift is allowed when the phone has been still for end_shift_still_s, or when there has been
+     * no GPS fix for end_shift_no_fix_s (since the last fix, or since shift start if none came during
+     * the shift). Reason for the second: without GPS the app cannot tell moving from still, and the
+     * driver must still be able to end the shift, for example in a covered car park.
+     */
+    fun endShiftReason(nowMs: Long): EndShiftReason? {
+        val since = stillSinceMs
+        if (since != null && hasFix(nowMs) && nowMs - since >= settings.endShiftStillS * 1000) {
+            return EndShiftReason.Still
+        }
+        val lastFixMs = lastFix?.let { it.elapsedRealtimeNanos / 1_000_000 } ?: 0L
+        val noFixSinceMs = maxOf(lastFixMs, shiftStartMs)
+        return if (nowMs - noFixSinceMs >= settings.endShiftNoFixS * 1000) EndShiftReason.NoGps else null
     }
 
     fun startShift(tiltDownDeg: Float) {
-        // Stored for the distance-ahead formula in phase 3. Height is a fixed config value for now.
+        // Stored for the distance-ahead formula in phase 3. Height comes from local.properties per phone.
         getApplication<Application>().getSharedPreferences("mount", Context.MODE_PRIVATE).edit {
-            putFloat("camera_height_m", settings.cameraHeightM.toFloat())
+            putFloat("camera_height_m", BuildConfig.CAMERA_HEIGHT_M.toFloat())
             putFloat("tilt_down_deg", tiltDownDeg)
         }
         distanceM = 0.0
         lastDistanceFix = null
+        shiftStartMs = SystemClock.elapsedRealtime()
         cooling = false
         screen = Screen.Scanning
     }

@@ -31,64 +31,78 @@ import androidx.compose.ui.unit.dp
 import com.birdeye.ui.theme.BirdEye
 import com.birdeye.ui.theme.PatrolSpacing
 
-/** English on top, Malay below, for key states (eagle/CLAUDE.md: drivers may read either). */
+/** A label for a key state or check, in English. */
 @Composable
-fun BilingualLabel(
-    @StringRes en: Int,
-    @StringRes ms: Int,
+fun StateLabel(
+    @StringRes label: Int,
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.titleMedium,
     color: Color = MaterialTheme.colorScheme.onSurface,
 ) {
-    Column(modifier) {
-        Text(stringResource(en), style = style, color = color)
-        Text(
-            stringResource(ms),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    Text(stringResource(label), modifier, style = style, color = color)
 }
 
-/** A tick or a cross drawn in a ring, so pass and fail never rely on colour alone. */
+/** Result of one self check. Warn shows a problem but does not block Start shift. */
+enum class CheckState { Pass, Warn, Fail }
+
+fun checkOf(pass: Boolean) = if (pass) CheckState.Pass else CheckState.Fail
+
 @Composable
-fun StatusIcon(pass: Boolean, modifier: Modifier = Modifier, iconSize: Dp = 28.dp) {
-    val color = if (pass) BirdEye.status.done else BirdEye.status.high
-    val description = stringResource(if (pass) R.string.pass_en else R.string.fail_en)
+private fun CheckState.color() = when (this) {
+    CheckState.Pass -> BirdEye.status.done
+    CheckState.Warn -> BirdEye.status.medium
+    CheckState.Fail -> BirdEye.status.high
+}
+
+@StringRes
+private fun CheckState.word() = when (this) {
+    CheckState.Pass -> R.string.pass
+    CheckState.Warn -> R.string.warning
+    CheckState.Fail -> R.string.fail
+}
+
+/** A tick, an exclamation mark or a cross in a ring, so a check result never relies on colour alone. */
+@Composable
+fun StatusIcon(state: CheckState, modifier: Modifier = Modifier, iconSize: Dp = 28.dp) {
+    val color = state.color()
+    val description = stringResource(state.word())
     Canvas(modifier.size(iconSize).semantics { contentDescription = description }) {
         val stroke = iconSize.toPx() / 10
         drawCircle(color, radius = this.size.minDimension / 2 - stroke / 2, style = Stroke(stroke))
         val w = this.size.width
-        if (pass) {
-            drawLine(color, Offset(w * 0.28f, w * 0.52f), Offset(w * 0.44f, w * 0.68f), stroke, StrokeCap.Round)
-            drawLine(color, Offset(w * 0.44f, w * 0.68f), Offset(w * 0.73f, w * 0.36f), stroke, StrokeCap.Round)
-        } else {
-            drawLine(color, Offset(w * 0.33f, w * 0.33f), Offset(w * 0.67f, w * 0.67f), stroke, StrokeCap.Round)
-            drawLine(color, Offset(w * 0.67f, w * 0.33f), Offset(w * 0.33f, w * 0.67f), stroke, StrokeCap.Round)
+        when (state) {
+            CheckState.Pass -> {
+                drawLine(color, Offset(w * 0.28f, w * 0.52f), Offset(w * 0.44f, w * 0.68f), stroke, StrokeCap.Round)
+                drawLine(color, Offset(w * 0.44f, w * 0.68f), Offset(w * 0.73f, w * 0.36f), stroke, StrokeCap.Round)
+            }
+            CheckState.Warn -> {
+                drawLine(color, Offset(w * 0.5f, w * 0.27f), Offset(w * 0.5f, w * 0.56f), stroke, StrokeCap.Round)
+                drawCircle(color, radius = stroke * 0.7f, center = Offset(w * 0.5f, w * 0.72f))
+            }
+            CheckState.Fail -> {
+                drawLine(color, Offset(w * 0.33f, w * 0.33f), Offset(w * 0.67f, w * 0.67f), stroke, StrokeCap.Round)
+                drawLine(color, Offset(w * 0.67f, w * 0.33f), Offset(w * 0.33f, w * 0.67f), stroke, StrokeCap.Round)
+            }
         }
     }
 }
 
-/** One self check row: icon, name in both languages, and the word Pass or Fail. */
+/** One self check row: icon, name, and the word Pass, Warning or Fail. */
 @Composable
-fun CheckRow(@StringRes en: Int, @StringRes ms: Int, pass: Boolean, detail: String? = null) {
+fun CheckRow(@StringRes label: Int, state: CheckState, detail: String? = null) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = PatrolSpacing.touchTarget),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.md),
     ) {
-        StatusIcon(pass)
+        StatusIcon(state)
         Column(Modifier.weight(1f)) {
-            BilingualLabel(en, ms)
+            StateLabel(label)
             detail?.let {
                 Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        BilingualLabel(
-            if (pass) R.string.pass_en else R.string.fail_en,
-            if (pass) R.string.pass_ms else R.string.fail_ms,
-            color = if (pass) BirdEye.status.done else BirdEye.status.high,
-        )
+        StateLabel(state.word(), color = state.color())
     }
 }
 
@@ -112,18 +126,17 @@ fun MockLabel(modifier: Modifier = Modifier, note: String? = null) {
     }
 }
 
-/** Full-width button, never shorter than PatrolSpacing.touchTarget (56 dp). Label in both languages. */
+/** Full-width button, never shorter than PatrolSpacing.touchTarget (56 dp). */
 @Composable
 fun PatrolButton(
-    @StringRes en: Int,
-    @StringRes ms: Int,
+    @StringRes label: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     outlined: Boolean = false,
 ) {
     val content: @Composable () -> Unit = {
-        Text("${stringResource(en)} / ${stringResource(ms)}", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
     }
     val buttonModifier = modifier.fillMaxWidth().heightIn(min = PatrolSpacing.touchTarget)
     if (outlined) {
@@ -133,11 +146,11 @@ fun PatrolButton(
     }
 }
 
-/** Large counter for one-second glances: number in Geist Mono, label in both languages. */
+/** Large counter for one-second glances: number in Geist Mono, label below. */
 @Composable
-fun Counter(value: String, @StringRes en: Int, @StringRes ms: Int, modifier: Modifier = Modifier) {
+fun Counter(value: String, @StringRes label: Int, modifier: Modifier = Modifier) {
     Column(modifier) {
         Text(value, style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.onSurface)
-        BilingualLabel(en, ms, style = MaterialTheme.typography.bodyLarge)
+        StateLabel(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
