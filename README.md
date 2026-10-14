@@ -1,28 +1,57 @@
-# Bird Eye v33
+# Bird Eye V33
 
-Phones in township patrol cars and vans detect potholes and cracks on the device. A backend tracks each defect and confirms repairs from later passes.
+**Find road damage while it's still cheap to fix.**
 
-## Status
+## The problem
 
-Bird Eye v33 is a hackathon prototype for the SDP University Hackathon 2026. Most of the system is designed but not built yet. The design is in [docs/architecture.md](docs/architecture.md).
+Township road maintenance is mostly reactive. The team learns about a defect
+when a resident complains, sends a crew, and closes the ticket. Three things
+are missing from that routine:
 
-What works today:
-- **eagle (Android app):** the project builds with `./gradlew assembleDebug`. It applies the Bird Eye theme (`BirdEyeTheme`) with bundled Geist fonts and shows a single placeholder greeting screen.
-- **dashboard:** the project builds with `npm run build`. It serves the create-next-app start page at `/` and a shadcn dashboard layout with mock data at `/dashboard`. The Bird Eye colour tokens are in `app/globals.css`, and dark mode is on by default. `npm run lint` passes.
+- **Early warning.** Roads usually fail slowly. A crack lets water in and
+  becomes a pothole months later. Sealing the crack is a small job; repairing
+  the pothole is not. Residents report potholes, not cracks, so the cheap
+  stage is missed.
+- **A full picture.** The team only knows about roads someone complained
+  about. It cannot plan repairs or budget for roads it has never checked.
+- **Proof that repairs held.** Once a ticket is closed, nobody goes back to
+  check. A failed repair is found only when the next complaint arrives.
 
-What does not exist yet:
-- On-device detection, camera capture, GPS, the local queue and uploads in the app.
-- The backend API, database, workers and agents. `backend/` is an empty uv project.
-- The detector model and the training pipeline. `ml/` is an empty uv project.
-- Real dashboard pages: map, review queue, work orders, coverage and devices.
+Inspecting every road by hand would fix this, but it takes staff time, and
+every new township phase adds more roads.
 
-## How it works
+## What Bird Eye does
 
-1. **Detect on the phone.** A small object detector runs on camera frames and finds potholes and cracks. Faces and number plates in the crop are blurred on the phone. Reason: video never leaves the device.
-2. **Upload small records.** The phone uploads a cropped image, location and time in batches during the shift. Reason: records are kilobytes, so mobile data is enough.
-3. **Merge into defects.** The backend merges repeated sightings of the same defect into one record with a history. Reason: one pothole seen on many passes is still one job.
-4. **Rank by urgency.** A visible weighted score ranks defects by type, size, location and age. Reason: supervisors can see why a defect is at the top.
-5. **Confirm the repair.** After a repair, the defect is confirmed fixed only after clean passes on at least 2 different days, where the spot was actually seen with no detection. Reason: a road nobody drove, or a phone paused for heat, must not confirm a fix.
+A phone in each patrol car spots cracks and potholes while the car drives its
+usual route. No one stops or files a report.
+
+Every detection carries GPS coordinates. The app estimates where the defect
+sits on the road ahead of the car, and each later sighting refines that
+position, so the location gets more accurate with every pass.
+
+Every defect reaches the maintenance team with its exact coordinates, ranked
+so the most urgent are handled first. Each record shows a photo of the defect,
+when it was first seen and how many times. An AI agent drafts the repair job
+with the location attached, and a supervisor approves it. After the repair,
+later patrols drive past the same coordinates. If the defect is gone, the
+repair is confirmed. If it returns, the record reopens with its history.
+
+Residents don't use Bird Eye. They benefit from roads that are repaired
+earlier and repaired properly.
+
+```mermaid
+flowchart LR
+    A[Patrol car drives its usual route] --> B[Phone spots a crack or pothole]
+    B --> C[Detection tagged with GPS coordinates]
+    C --> D[Defects ranked, most urgent first]
+    D --> E[AI drafts the repair job with the location]
+    E --> F[Supervisor approves]
+    F --> G[Crew repairs]
+    G --> H[Later patrols pass the same coordinates]
+    H --> I{Defect still there?}
+    I -- No --> J[Repair confirmed]
+    I -- Yes --> D
+```
 
 Detail: [docs/architecture.md](docs/architecture.md).
 
@@ -43,44 +72,89 @@ Detail: [docs/architecture.md](docs/architecture.md).
 | [`ml/`](ml/CLAUDE.md) | Model training and conversion to LiteRT (Python, PyTorch, uv) |
 | [`docs/`](docs/decisions.md) | Architecture, API contract, decisions and licence register |
 
-## Prerequisites
-
-Versions come from the files named in brackets.
-
-- **Android Studio** with its bundled JDK, recent enough for Android Gradle plugin 9.4.1 (`eagle/gradle/libs.versions.toml`). The wrapper downloads Gradle 9.6.0 (`eagle/gradle/wrapper/gradle-wrapper.properties`), the Gradle daemon uses JDK 25 (`eagle/gradle/gradle-daemon-jvm.properties`), and the app compiles against SDK 37 (`eagle/app/build.gradle.kts`).
-- **Node.js** 20.9 or later, required by Next.js 16.4 (`dashboard/package.json`), with npm.
-- **uv** 0.12.x, matching the `uv_build>=0.12.23,<0.13.0` build backend, and Python 3.14 (`.python-version` and `pyproject.toml` in `backend/` and `ml/`). uv can install Python 3.14 itself.
-
 ## Getting started
 
-Each folder is a separate project. Run commands from inside it.
+You only need the tools for the part you work on. Each folder is a separate project, so every command below runs inside its own folder.
 
-**eagle**
+How to read the command boxes: type each line into a terminal and press Enter. Anything after a `#` is a note for you, not part of the command, so leave it out. For example, for `npm run dev   # open http://localhost:3000`, type only `npm run dev`.
 
-```bash
-./gradlew assembleDebug                 # build the debug APK
-./gradlew installDebug                  # install on a connected device or emulator
-./gradlew testDebugUnitTest             # JVM unit tests (template examples only)
-```
-
-**dashboard**
+### 1. Get the code
 
 ```bash
-npm install
-npm run dev                             # http://localhost:3000
-npm run build
-npm run lint
+git clone https://github.com/lloonnn/BirdEyeV33.git
+cd BirdEyeV33
 ```
 
-**backend** and **ml**
+### 2. Dashboard (web)
+
+Install Node.js 20.9 or later from [nodejs.org](https://nodejs.org) (the LTS version is fine). npm comes with it. Next.js 16.4 needs at least 20.9.
 
 ```bash
-uv sync
-uv run backend                          # in backend/: template entry point only
-uv run ml                               # in ml/: template entry point only
+cd dashboard
+npm install        # first time, and again whenever package.json changes
+npm run dev        # open http://localhost:3000
 ```
 
-Not set up yet: the backend API server, database, tests and migrations; training, evaluation and conversion in `ml/`; dashboard tests.
+`npm run dev` is all you need while working. It reloads the page as you edit. Run these two before you push, because the build fails on errors that dev mode lets through:
+
+```bash
+npm run lint       # checks code style and common mistakes
+npm run build      # checks that the production build compiles
+```
+
+### 3. eagle (Android app)
+
+Install [Android Studio](https://developer.android.com/studio). It includes the JDK and the Android SDK, so nothing else is needed. Use a version that supports Android Gradle plugin 9.4.1.
+
+1. In Android Studio, choose **Open** and select the `eagle` folder, not the repo root. Reason: `eagle/` holds the Gradle project.
+2. Wait for the Gradle sync to finish. The first sync downloads Gradle 9.6.0 and can take several minutes.
+3. Connect a phone with USB debugging on, or start an emulator, then press **Run**.
+
+You can also build from a terminal. This is optional; the **Run** button does the same thing.
+
+`gradlew` is a script inside the `eagle` folder, so the terminal must be in that folder. The easiest way: in Android Studio, open the **Terminal** tab at the bottom of the window. It opens in the `eagle` folder already. Then type one of these and press Enter:
+
+```bash
+./gradlew assembleDebug          # build the app file (APK)
+./gradlew installDebug           # install it on a connected phone or emulator
+./gradlew testDebugUnitTest      # run the unit tests (template examples only)
+```
+
+On Windows, type `.\gradlew` instead of `./gradlew`, for example `.\gradlew assembleDebug`. Reason: the Windows terminal in Android Studio is PowerShell, which needs the `.\` prefix.
+
+From any other terminal, go into the folder first with `cd eagle` from the repo root. That terminal also needs a JDK: if it says `java` is not found, use Android Studio's Terminal tab instead.
+
+### 4. backend and ml (Python)
+
+The backend and ml projects are written in Python. To run them you need a tool called [uv](https://docs.astral.sh/uv/). uv downloads the right Python version and every package the project needs, so you install only uv yourself.
+
+If you already have Python, install uv with pip:
+
+```bash
+pip install uv
+```
+
+On recent Ubuntu or Debian, use `pipx install uv` instead. Reason: the system blocks global `pip` installs to protect its own Python.
+
+If you do not have Python, use the install script. It needs no Python:
+
+```bash
+# macOS and Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Open a new terminal so `uv` is on your path, then check it with `uv --version`. Use uv 0.12 or later. Whichever way you installed uv, it downloads Python 3.14 for the projects, so your own Python version does not matter.
+
+```bash
+cd backend       # or: cd ml
+uv sync          # creates .venv and installs dependencies
+uv run backend   # in ml/: uv run ml
+```
 
 ## Documentation
 
@@ -93,8 +167,3 @@ Not set up yet: the backend API server, database, tests and migrations; training
 
 Common questions and answers: [docs/faq.md](docs/faq.md).
 
-## Licences and AI use
-
-- Third-party licences are listed in the licence register in [docs/decisions.md](docs/decisions.md).
-- The hackathon IP terms apply to this code.
-- AI tools (Claude) were used in design and coding. This is disclosed per the hackathon terms, and commits made with Claude Code carry a Co-Authored-By trailer.
