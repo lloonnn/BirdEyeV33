@@ -5,12 +5,15 @@ import { usePathname } from "next/navigation"
 import { EyeIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useLastUpdated } from "@/lib/last-updated"
 import { navItems } from "@/lib/nav"
+import { formatClock } from "@/lib/time"
 
 // Floating menu at the top centre of every page. Solid panel, not glass:
 // glass is only for the Overview's floating panels (Rule in dashboard/CLAUDE.md).
 export function PillMenu() {
   const pathname = usePathname()
+  const lastUpdated = useLastUpdated()
 
   return (
     <nav
@@ -27,7 +30,6 @@ export function PillMenu() {
 
       {/* Scrolls sideways only on screens too narrow for all five links. */}
       <ul className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
-
         {navItems.map((item) => {
           const active = pathname === item.url
           return (
@@ -49,9 +51,14 @@ export function PillMenu() {
         })}
       </ul>
 
-      {/* Placeholder until the map polls GET /defects (Phase 2). */}
       <span className="hidden shrink-0 px-2 text-xs text-muted-foreground md:inline">
-        Last updated: not yet
+        {lastUpdated ? (
+          <>
+            Last updated <span className="tabular">{formatClock(lastUpdated)}</span>
+          </>
+        ) : (
+          "Not updated yet"
+        )}
       </span>
     </nav>
   )

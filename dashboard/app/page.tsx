@@ -1,6 +1,7 @@
-// Overview is the home page: a full-viewport area behind the pill menu.
-// The Leaflet map fills it in Phase 2. Fixed to the viewport, so the page
-// never scrolls.
+import { Overview } from "@/components/overview/overview"
+
+// Overview is the home page: the map fills the viewport behind the pill menu,
+// fixed so the page never scrolls.
 export default function OverviewPage() {
-  return <div aria-label="Map area" className="fixed inset-0" />
+  return <Overview />
 }
