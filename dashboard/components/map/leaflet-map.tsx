@@ -8,7 +8,7 @@ import L from "leaflet"
 import "leaflet/dist/leaflet.css"
 
 import type { Bbox } from "@/lib/api-types"
-import { mapTiles, mapView } from "@/lib/config"
+import { flyToZoom, mapTiles, mapView } from "@/lib/config"
 import "./leaflet-map.css"
 
 // A status token from globals.css: `--status-high` and so on.
@@ -25,24 +25,35 @@ export type MapPin = {
   label: string
 }
 
+// Ask the map to fly to a point. `seq` changes on every request, so flying
+// to the same point twice still moves the map.
+export type MapFocus = { lat: number; lon: number; seq: number }
+
 type Props = {
   pins: MapPin[]
   // Called with the visible area on load and after every pan or zoom.
   onViewChange: (bbox: Bbox) => void
+  onPinClick?: (id: number) => void
+  // Drawn with a halo, so the open defect stands out.
+  selectedId?: number | null
+  focus?: MapFocus | null
 }
 
 function toBbox(bounds: L.LatLngBounds): Bbox {
   return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
 }
 
-export default function LeafletMap({ pins, onViewChange }: Props) {
+export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId, focus }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
   const pinLayerRef = useRef<L.LayerGroup | null>(null)
   const onViewChangeRef = useRef(onViewChange)
+  const onPinClickRef = useRef(onPinClick)
 
   useEffect(() => {
     onViewChangeRef.current = onViewChange
-  }, [onViewChange])
+    onPinClickRef.current = onPinClick
+  }, [onViewChange, onPinClick])
 
   useEffect(() => {
     const map = L.map(containerRef.current!, {
@@ -58,6 +69,7 @@ export default function LeafletMap({ pins, onViewChange }: Props) {
       maxZoom: mapView.maxZoom,
     }).addTo(map)
     pinLayerRef.current = L.layerGroup().addTo(map)
+    mapRef.current = map
 
     const report = () => onViewChangeRef.current(toBbox(map.getBounds()))
     map.on("moveend", report)
@@ -65,6 +77,7 @@ export default function LeafletMap({ pins, onViewChange }: Props) {
 
     return () => {
       map.remove()
+      mapRef.current = null
       pinLayerRef.current = null
     }
   }, [])
@@ -77,8 +90,18 @@ export default function LeafletMap({ pins, onViewChange }: Props) {
     // Read the colours from the theme tokens, so globals.css stays the source of truth.
     const css = getComputedStyle(document.documentElement)
     const background = css.getPropertyValue("--background").trim()
+    const foreground = css.getPropertyValue("--foreground").trim()
     for (const pin of pins) {
       const color = css.getPropertyValue(`--status-${pin.tone}`).trim()
+      if (pin.id === selectedId) {
+        L.circleMarker([pin.lat, pin.lon], {
+          radius: 12,
+          color: foreground,
+          weight: 2,
+          fill: false,
+          interactive: false,
+        }).addTo(layer)
+      }
       const marker =
         pin.shape === "filled"
           ? L.circleMarker([pin.lat, pin.lon], {
@@ -101,9 +124,16 @@ export default function LeafletMap({ pins, onViewChange }: Props) {
         offset: [0, -8],
         className: "be-map-tooltip",
       })
+      marker.on("click", () => onPinClickRef.current?.(pin.id))
       marker.addTo(layer)
     }
-  }, [pins])
+  }, [pins, selectedId])
+
+  useEffect(() => {
+    if (!focus || !mapRef.current) return
+    const map = mapRef.current
+    map.flyTo([focus.lat, focus.lon], Math.max(map.getZoom(), flyToZoom))
+  }, [focus])
 
   return <div ref={containerRef} className="be-map isolate h-full w-full" />
 }

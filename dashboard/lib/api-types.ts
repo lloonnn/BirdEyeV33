@@ -31,6 +31,18 @@ export type Defect = {
   work_order_id: number | null
 }
 
+// One sighting of a defect (decision 66).
+export type Sighting = {
+  id: number
+  captured_at: string
+  confidence: number
+  crop_url: string
+  device_id: string
+}
+
+// GET /defects/{id}: the defect object plus its sightings (decision 66).
+export type DefectDetail = Defect & { sightings: Sighting[] }
+
 // `bbox` for GET /defects and GET /coverage: minLon, minLat, maxLon, maxLat.
 export type Bbox = [number, number, number, number]
 

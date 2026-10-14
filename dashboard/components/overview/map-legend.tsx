@@ -1,4 +1,5 @@
 import type { PinTone } from "@/components/map/leaflet-map"
+import { Dot, Ring, toneText } from "@/components/overview/badges"
 import { cn } from "@/lib/utils"
 
 // Every pin colour and shape with its word (brief section 5.1).
@@ -9,30 +10,6 @@ const tones: { tone: PinTone; label: string }[] = [
   { tone: "done", label: "Confirmed" },
   { tone: "neutral", label: "Scheduled, fixed or rejected" },
 ]
-
-const toneText: Record<PinTone, string> = {
-  high: "text-status-high",
-  medium: "text-status-medium",
-  low: "text-status-low",
-  done: "text-status-done",
-  neutral: "text-status-neutral",
-}
-
-function Dot({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 12 12" className={cn("size-3 shrink-0", className)} aria-hidden>
-      <circle cx="6" cy="6" r="5" fill="currentColor" />
-    </svg>
-  )
-}
-
-function Ring({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 12 12" className={cn("size-3 shrink-0", className)} aria-hidden>
-      <circle cx="6" cy="6" r="4.25" fill="none" stroke="currentColor" strokeWidth="2.5" />
-    </svg>
-  )
-}
 
 export function MapLegend({ className }: { className?: string }) {
   return (

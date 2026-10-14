@@ -2,13 +2,15 @@
 // and the live list below decide, per function, whether it calls the backend
 // or its mock (Rule 3). Nothing else switches.
 
-import { ApiError, type Defect, type DefectsQuery } from "@/lib/api-types"
+import { ApiError, type Defect, type DefectDetail, type DefectsQuery } from "@/lib/api-types"
 import * as mock from "@/lib/mocks/api"
 
-type ApiFunction = "getDefects"
+type ApiFunction = "getDefects" | "getDefect"
 
 // Functions whose backend endpoint works. Used only when the mode is `real`.
-const live: ReadonlySet<ApiFunction> = new Set<ApiFunction>(["getDefects"])
+// Empty until the backend serves GET /defects and GET /defects/{id}; add both
+// together, since the panel looks up IDs that the map list returns.
+const live: ReadonlySet<ApiFunction> = new Set<ApiFunction>([])
 
 const mode = process.env.NEXT_PUBLIC_API_MODE === "real" ? "real" : "mock"
 const baseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "")
@@ -34,6 +36,20 @@ export async function getDefects(
   if (query.sort) params.set("sort", query.sort)
   if (query.limit !== undefined) params.set("limit", String(query.limit))
   return request<Defect[]>(`/defects?${params}`, options)
+}
+
+// GET /defects/{id}: the defect plus its sightings, or 404 (decision 66).
+export async function getDefect(id: number, options: CallOptions = {}): Promise<DefectDetail> {
+  if (usesMock("getDefect")) return mock.getDefect(id, options)
+  return request<DefectDetail>(`/defects/${id}`, options)
+}
+
+// Where to load a crop from, or null when the crop is invented (mock mode
+// shows a placeholder instead). The backend serves `crop_url`; its path is
+// not fixed in v0, so a relative path is taken against the backend address.
+export function cropSrc(cropUrl: string, fn: ApiFunction): string | null {
+  if (usesMock(fn)) return null
+  return /^https?:\/\//.test(cropUrl) ? cropUrl : `${baseUrl}${cropUrl}`
 }
 
 async function request<T>(path: string, { signal }: CallOptions): Promise<T> {

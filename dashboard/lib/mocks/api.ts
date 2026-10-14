@@ -2,8 +2,9 @@
 // Mock versions of the functions in lib/api.ts. Each takes the same
 // parameters as the real endpoint and filters the same way.
 
-import type { Defect, DefectsQuery } from "@/lib/api-types"
+import { ApiError, type Defect, type DefectDetail, type DefectsQuery } from "@/lib/api-types"
 import { mockLatencyMs } from "@/lib/config"
+import { mockSightings } from "@/lib/mocks/sightings"
 import { store } from "@/lib/mocks/store"
 
 type CallOptions = { signal?: AbortSignal }
@@ -37,4 +38,13 @@ export async function getDefects(query: DefectsQuery, options: CallOptions): Pro
   }
   if (query.limit !== undefined) result = result.slice(0, query.limit)
   return structuredClone(result)
+}
+
+// GET /defects/{id}: the defect plus its sightings, or 404 in FastAPI's
+// format (decisions 66 and 79).
+export async function getDefect(id: number, options: CallOptions): Promise<DefectDetail> {
+  await delay(options)
+  const defect = store.defects.find((d) => d.id === id)
+  if (!defect) throw new ApiError(404, "Not Found")
+  return structuredClone({ ...defect, sightings: mockSightings(defect) })
 }
