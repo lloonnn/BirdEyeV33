@@ -46,7 +46,7 @@ Status values: **decided**, **starting value** (a tunable number, untested), **y
 | 4 | Pilot scope: cars and vans, one Elmina precinct | Phones are unreliable on motorcycles | decided |
 | 5 | No authentication, shift records, township boundary or resident page in the hackathon build | Keeps the build focused on the detection to repair loop | decided |
 | 6 | Write only new code; do not copy from personal projects or the web | Hackathon IP terms, clauses 11 and 12.2 | decided |
-| 7 | No new dependency, dataset, model, map tile source or API without a row in the licence register | Every third-party item must be checked against the IP terms before use | decided |
+| 7 | Licence register not required for the hackathon prototype. Licence review is deferred until before any SDP deployment (T&C clauses 14.1 and 14.3 still apply then). | Checking every package costs hackathon time, and the prototype is not deployed at SDP | decided |
 | 8 | No Ultralytics or other AGPL code anywhere in the repo | AGPL may conflict with the hackathon IP terms | decided |
 | 9 | Keep Claude Code's Co-Authored-By trailer on commits | Hackathon terms clause 13.1 require disclosing material AI use, and the trailer is the record | decided |
 | 10 | SDP's current defect finding method and typical repair time | They are the baseline the pilot is measured against | mentors |
@@ -102,15 +102,34 @@ Status values: **decided**, **starting value** (a tunable number, untested), **y
 | 44 | In the urgency type term, a pothole scores higher than a crack | A pothole is the more immediate hazard to vehicles and motorcyclists; final values are set with SDP | starting value |
 | 45 | Urgency weights start equal | The weights are set with SDP, not guessed | starting value |
 | 46 | The urgency score has no rain term | Rain only mattered for drains, which are not detected | decided |
-| 47 | Track upload field names | Not needed until the track logger is built | deferred |
-| 48 | Response bodies for endpoints other than the detection record and heartbeat | Defined when each endpoint is built | deferred |
-| 49 | Error format: FastAPI's default `{"detail": ...}` | No extra code; a custom format is deferred | deferred |
+| 47 | Track upload field names | Superseded by decision 77 | superseded |
+| 48 | Response bodies for endpoints other than the detection record and heartbeat | Superseded by decisions 62 to 77 | superseded |
+| 49 | Error format: FastAPI's default `{"detail": ...}`; status codes in decision 79 | No extra code; a custom format is deferred | decided |
 
 ### API
 
 | # | Decision | Reason | Status |
 |---|---|---|---|
 | 50 | New endpoints: `POST /defects/{id}/verify`, `POST /defects/{id}/reject`, `PATCH /work-orders/{id}`, `POST /work-orders/{id}/reject`, `POST /work-orders/{id}/done`, `GET /brief/latest` | The lifecycle and dashboard need an endpoint for every supervisor action | decided |
+| 62 | `docs/api-contract.md` is v0, marked "v0, prototype; may change". A shape change updates the contract and adds a row here. | No endpoint is built yet, and building them will expose mistakes; the dashboard can mock against fixed shapes meanwhile | decided |
+| 63 | `GET /defects?bbox=minLon,minLat,maxLon,maxLat&type=&status=&sort=urgency_desc&limit=` returns a list of defect objects. `bbox` is required; `urgency_desc` is the only sort in v0. | The map reads only the visible area, and the repair list is ranked by urgency | decided |
+| 64 | Defect object: `id`, `type`, `status`, `urgency` (0 to 1), `urgency_band` (`high`, `medium`, `low`), `urgency_terms` {`type`, `size`, `location`, `age`}, `lat`, `lon`, `first_seen`, `last_seen`, `sighting_count`, `crop_url` (best crop), `segment_id`, `work_order_id` (null when none) | The terms show supervisors why a defect ranks where it does, which is the point of a visible formula; `work_order_id` saves the dashboard searching every work order | decided |
+| 65 | Cut-offs that turn `urgency` into `urgency_band`; a backend config value | The contract needs the band, but no cut-off has been chosen | you decide |
+| 66 | New endpoint `GET /defects/{id}`: the defect object plus `sightings[]` {`id`, `captured_at`, `confidence`, `crop_url`, `device_id`} | A supervisor needs every crop and sighting to judge one defect | decided |
+| 67 | `POST /defects/{id}/verify` and `/reject` take no body, return the updated defect, and return 409 if the defect is not in Detected | The lifecycle allows both actions only from Detected | decided |
+| 68 | `GET /reviews` returns a list of {`id`, `status` (`pending`, `answered`), `sighting`: the detection record plus `crop_url`} | The supervisor judges the crop with the record that produced it | decided |
+| 69 | `POST /reviews/{id}` body {`answer`: `correct`, `wrong_class` or `not_defect`, `class`: `pothole` or `crack`, required for `wrong_class`}. `correct` merges like a save-band record; `wrong_class` merges with the corrected class; `not_defect` stores a negative example and creates no defect. Returns the updated review; 409 if already answered. | Each answer either feeds the defect map or becomes training data, so no label is wasted | decided |
+| 70 | `GET /work-orders?status=` returns a list of {`id`, `status` (`pending_approval`, `approved`, `rejected`, `done`), `crew_type`, `description`, `defect_ids`, `created_at`, `approved_at`} | One shape serves the approval queue and the job history | decided |
+| 71 | Work order approve, reject and done take no body and return the updated work order. Approve moves its defects to Scheduled; done moves them to Fixed. `PATCH` accepts `description`, `crew_type`, `defect_ids`. Approve, reject and `PATCH` work from `pending_approval` only, done from `approved` only; otherwise 409. | Matches the lifecycle; a supervisor edits a draft before approving it, not after | decided |
+| 72 | `GET /devices` returns a list of {`device_id`, `vehicle`, `last_heartbeat_at`, `state`, `pause_reason`, `online`, `queue_size`, `battery_temp_c`, `thermal_status`, `frame_rate`, `app_version`, `model_version`, `model_error`, `unreachable`}. The backend sets `unreachable` after 5 minutes without a heartbeat. | The heartbeat already sends these fields, and the Devices page needs them to show phones stuck on an old model; the backend decides unreachable once, so every screen agrees | starting value (5 minutes) |
+| 73 | `GET /coverage?bbox=&since=` returns a GeoJSON FeatureCollection of segments with properties {`segment_id`, `road_class`, `last_scanned_at`, `target` (`daily`, `weekly`), `overdue`} | GeoJSON draws directly as a Leaflet layer | decided |
+| 74 | `GET /brief/latest` returns {`id`, `created_at`, `text`, `defect_ids`}, or 404 when none exists | `defect_ids` lets a reviewer check each claim; 404 tells the dashboard to show an empty state | decided |
+| 75 | `GET /config` returns the thresholds from the app plan as v0 placeholders, plus `model_version` and `model_sha256`. `GET /models/{version}` returns the raw `.tflite` bytes. | The phone checks the hash before loading, so a broken download never replaces a working model | decided (threshold values are starting values) |
+| 76 | `POST /detections/batch` is multipart: a JSON part `records` (array of detection records) and one file part per crop named by `crop_file`. Returns 200 {`accepted`, `duplicates`}. | Records and crops arrive together, so a sighting is never stored without its crop | decided |
+| 77 | `POST /tracks` body {`device_id`, `points[]` {`t`, `lat`, `lon`, `accuracy_m`}, `active_ranges[]` {`start`, `end`, `frame_rate`}}. `POST /tracks` and `POST /heartbeat` return 204. | The seen rule needs active ranges with frame rates; the phone needs no reply body | decided |
+| 78 | Phone retry: network errors, 5xx and 429 are retried; any other 4xx marks the batch rejected | Those failures are temporary; another 4xx means the request is wrong and resending cannot fix it. Retries are safe because ingest deduplicates by `client_id`. | decided |
+| 79 | Error status codes: 404 not found, 409 wrong state, 422 validation, all in FastAPI's `{"detail": ...}` format | Clients can tell a missing item from a forbidden action without parsing text | decided |
+| 80 | The dashboard calls the backend directly at `NEXT_PUBLIC_API_BASE_URL`; the backend enables CORS for the dashboard origin; no proxy | One address to configure and no rewrite layer to debug | decided |
 
 ### Agents
 
@@ -132,19 +151,20 @@ Status values: **decided**, **starting value** (a tunable number, untested), **y
 | 59 | No demo scene for a "not seen" pass | Demo time is short | decided |
 | 60 | Plain HTTP in the demo only, phone to laptop on local Wi-Fi, through an Android network security config that allows cleartext for the laptop's address only; any server off the laptop uses HTTPS | A laptop on local Wi-Fi has no trusted certificate; limiting cleartext to one address keeps everything else on HTTPS | decided |
 | 61 | Bundle Geist and Geist Mono in the app instead of Google downloadable fonts | No font certificates file, and type works offline | decided |
+| 81 | Dashboard map tiles: CARTO Dark Matter with CARTO and OpenStreetMap attribution, prototype use only. Tile URL lives in one setting. | A dark base map matches the dark dashboard; one setting lets the tiles change before any SDP deployment without a code change | decided |
 
 ## 3. Licence register
 
-Add a row before adding any dependency, dataset, model, map tile source or API. "Licence" is what the package registry or repository reports. "verify" means the licence or its fit with the hackathon IP terms is not confirmed.
+Not required for the hackathon prototype (decision 7). The rows are kept as a starting point for the licence review before any SDP deployment. "Licence" is what the package registry or repository reports. "verify" means the licence or its fit with the hackathon IP terms is not confirmed.
 
 | Item | Use | Licence | Status |
 |---|---|---|---|
 | RDD2022 | Training data for the first model | Not checked; also check whether test labels are public | verify |
 | Detector | On-device pothole and crack detection | Undecided; candidate YOLOX (Apache 2.0, not checked) | undecided |
 | Face and plate blur model | Blurring crops on the phone | Undecided | undecided |
-| CARTO Dark Matter tiles | Dark base map on the dashboard | Commercial use needs a licence | verify |
+| CARTO Dark Matter tiles | Dark base map on the dashboard, prototype use only (decision 81) | Commercial use needs a licence | verify before any SDP deployment |
 | Satellite tiles | Optional map layer | Not chosen, not checked | verify |
-| Bklit UI | Dashboard charts | Not checked | verify |
+| Bklit UI | Not used; replaced by Recharts | Not checked | removed |
 | shadcn/ui (`shadcn` package) | Dashboard components | MIT (npm metadata) | confirmed |
 | `@base-ui/react` | Primitives under shadcn Vega | MIT (npm metadata) | confirmed |
 | Next.js | Dashboard framework | MIT (npm metadata) | confirmed |
@@ -155,6 +175,8 @@ Add a row before adding any dependency, dataset, model, map tile source or API. 
 | LiteRT | On-device inference | Apache-2.0 (GitHub `google-ai-edge/LiteRT`) | confirmed; check the Android artifact when adding |
 | PyTorch | Training in `ml/` | Apache-2.0 and others (PyPI metadata) | confirmed |
 | FastAPI | Backend API | MIT (PyPI metadata) | confirmed |
+| python-multipart | FastAPI's parser for the multipart `POST /detections/batch` (decision 76) | Not checked; check PyPI metadata when adding | verify |
+| Starlette `CORSMiddleware` | CORS for the dashboard origin (decision 80); Starlette is installed with FastAPI | Not checked; check PyPI metadata when adding | verify |
 | APScheduler | Backend job scheduling | MIT (PyPI metadata) | confirmed |
 | PostgreSQL | Database | Not checked | verify |
 | PostGIS | Spatial queries in the database | GPL-2.0 (GitHub `postgis/postgis`) | low risk: used as a server, not distributed; confirm with organisers |

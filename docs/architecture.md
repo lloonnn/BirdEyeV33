@@ -15,7 +15,7 @@ Bird Eye v33 turns the vehicles that already patrol a township into a daily road
 | Database and storage | n/a | PostgreSQL with PostGIS in Docker; crops on local disk behind a storage interface | Defects, sightings, GPS tracks, coverage, work orders, reviews, model versions |
 | Background workers | `backend/` | Same server, scheduled jobs run by APScheduler | Merging sightings into defects, urgency ranking, coverage gaps, repair confirmation |
 | Agent service | `backend/`, package `bird_eye.agents` | Same server, calls a language model API | Drafting work orders and the daily brief; drafts wait for approval |
-| Dashboard | `dashboard/` | Browser; Next.js, shadcn/ui Vega style, Bklit charts, Leaflet | Live map, review queue, work order approval, device status, coverage view |
+| Dashboard | `dashboard/` | Browser; Next.js, shadcn/ui Vega style, Recharts, Leaflet | Live map, review queue, work order approval, device status, coverage view |
 | Training pipeline | `ml/` (separate uv project) | Developer machine or cloud GPU, on demand | Training, evaluation, conversion to TensorFlow Lite (LiteRT), publishing |
 
 Design choices:
@@ -142,7 +142,9 @@ All of these come from config and are starting values, to be tuned during the he
 
 ## 4. Data contracts
 
-Full contract with JSON examples: [api-contract.md](api-contract.md). All traffic is JSON over HTTPS, except crop images, which upload as multipart files.
+Full contract with JSON examples: [api-contract.md](api-contract.md), version v0, prototype; may change.
+
+All traffic is JSON, except the detection upload, which is multipart so the crops travel with their records, and the model download, which is raw bytes. In the demo only, the phone talks to the laptop over plain HTTP on local Wi-Fi, allowed for the laptop's address only by an Android network security config (decision 60). Reason: a laptop on local Wi-Fi has no trusted certificate. Any server off the laptop uses HTTPS. The dashboard calls the backend directly at `NEXT_PUBLIC_API_BASE_URL`, and the backend enables CORS for the dashboard origin.
 
 | Method and path | Caller | Purpose |
 |---|---|---|
@@ -151,7 +153,8 @@ Full contract with JSON examples: [api-contract.md](api-contract.md). All traffi
 | `POST /detections/batch` | Phone | Upload a batch of detection records with their crops |
 | `POST /tracks` | Phone | Upload a simplified GPS trace with active scanning ranges |
 | `POST /heartbeat` | Phone | Device status every 60 seconds |
-| `GET /defects` | Dashboard | Defects in a map area, filtered by type, status, urgency |
+| `GET /defects` | Dashboard | Defects in a map area, filtered by type and status, sorted by urgency |
+| `GET /defects/{id}` | Dashboard | One defect with all its sightings |
 | `GET /reviews` and `POST /reviews/{id}` | Dashboard | Unsure detections to label, and the supervisor's answer |
 | `POST /defects/{id}/verify` and `POST /defects/{id}/reject` | Dashboard | Supervisor verifies a defect, or rejects it as a false detection |
 | `GET /work-orders` and `POST /work-orders/{id}/approve` | Dashboard | Agent-drafted jobs waiting for approval |
@@ -302,7 +305,7 @@ These are enforced in code, not only in the prompt.
 
 ## 7. Dashboard
 
-Built with Next.js, shadcn/ui (Vega style) for layout and components, Bklit charts installed through the shadcn registry, and plain Leaflet wrapped in one React component for the map. Reason: react-leaflet is Hippocratic-2.1, which is not an OSI licence and may conflict with SDP's commercial use. Dark by default, with a light theme from the same tokens. No login in this build, and no resident page.
+Built with Next.js, shadcn/ui (Vega style) for layout and components, Recharts for charts, and plain Leaflet wrapped in one React component for the map. react-leaflet was removed (decision 55). Reason: it is Hippocratic-2.1, which is not an OSI licence and may conflict with SDP's commercial use. Dark by default, with a light theme from the same tokens. No login in this build, and no resident page.
 
 | Page | For | Shows and does | Reads from API |
 |---|---|---|---|
@@ -316,7 +319,6 @@ Built with Next.js, shadcn/ui (Vega style) for layout and components, Bklit char
 Design choices:
 - The map reads `GET /defects` for the visible area only. Reason: it stays fast as the township grows.
 - The map component loads with `ssr: false`, and its container gets `isolation: isolate`. Reason: Leaflet needs the browser, and dialogs must stay above the map.
-- Marker clustering needs a plugin whose licence is still to verify. Reason: every map dependency needs a licence register row first.
 - Only the Overview's floating panels use glass, through one shared `.panel` class with a `.no-glass` fallback. Reason: blur is recomputed while the map pans, so it is kept small and can be switched off in one place.
 - Status colour is always paired with a word or icon. Reason: colour alone is not readable for everyone.
 
@@ -425,7 +427,7 @@ Not in the hackathon build:
 
 ## 12. Open questions
 
-Only open, verify and mentor items remain. Everything else is settled in [decisions.md](decisions.md). Track field names, response bodies and the error format are deferred there.
+Only open, verify and mentor items remain. Everything else is settled in [decisions.md](decisions.md). Track field names, response bodies and error status codes are now set in the v0 API contract (decisions 62 to 80).
 
 **Open: the team decides**
 1. Which detector, after the licence check against the hackathon IP terms.
@@ -433,12 +435,11 @@ Only open, verify and mentor items remain. Everything else is settled in [decisi
 3. Which face and plate blur model runs on the crop.
 4. Which language model the agents use.
 5. What to do before the demo if the RDD2022 model misses most local potholes and cracks. Local labelling is ruled out for now; local testing happens in the pilot.
+6. The urgency cut-offs that set each defect's `urgency_band` to high, medium or low (decision 65).
 
 **Verify**
-6. RDD2022 licence terms for this use.
 7. Whether RDD2022 test labels are public. If not, hold out a fixed slice of the training data.
-8. The licence of the Leaflet marker clustering plugin.
-9. Every other row marked verify in the licence register in decisions.md.
+8. Before any SDP deployment: the licence review deferred by decision 7, including RDD2022's terms, CARTO tiles and every row marked verify in decisions.md.
 
 **Mentors**
-10. How SDP finds defects today and how long a typical repair takes: the baseline the pilot is measured against.
+9. How SDP finds defects today and how long a typical repair takes: the baseline the pilot is measured against.

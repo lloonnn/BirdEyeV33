@@ -26,7 +26,7 @@ There is no root build, no shared code and no CI. Nothing links the four project
 - **`docs/decisions.md` wins over everything else**, including the reference sources, the architecture doc and these CLAUDE.md files. Reason: the sources are out of date and decisions.md records the current choices.
 - **Do not add anything decisions.md lists as out of scope:** authentication, keys, login, shift records, township boundary, resident page, motorcycles, extra defect classes. Reason: they are deliberate future work, and building them wastes hackathon time.
 - **Write only new code.** Do not copy code from personal projects or the web. Reason: hackathon IP terms, clauses 11 and 12.2.
-- **No new dependency, dataset, model, map tile source or API without a row in the licence register** in `docs/decisions.md`. No Ultralytics or other AGPL code. Reason: every third-party item must fit the hackathon IP terms, and AGPL may not.
+- **No Ultralytics or other AGPL code.** Reason: AGPL may conflict with the hackathon IP terms. Licence review of other items is deferred until before any SDP deployment (decision 7).
 - **The model has 2 classes: pothole and crack.** Never claim accuracy on Malaysian roads. Reason: the model is trained on RDD2022 only, which has no Malaysian images.
 - **Every threshold is a config value marked as a starting value**, never hard-coded. Reason: thresholds are untested and must change without a code change or app release.
 - **`docs/reference/` is read-only.** Reason: it is the historical source; corrections go into the docs that override it.
@@ -35,7 +35,7 @@ There is no root build, no shared code and no CI. Nothing links the four project
 
 ## Docs
 
-- [docs/decisions.md](docs/decisions.md): scope, decision log, licence register. Read it first.
+- [docs/decisions.md](docs/decisions.md): scope, decision log, and the licence notes kept for later review. Read it first.
 - [docs/architecture.md](docs/architecture.md): how the system works, end to end.
 - [docs/api-contract.md](docs/api-contract.md): endpoints and JSON payloads between the phone, backend and dashboard.
 - [CONTRIBUTING.md](CONTRIBUTING.md): branches, commits, reviews, owners.
