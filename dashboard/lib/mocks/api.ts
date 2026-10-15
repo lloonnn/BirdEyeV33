@@ -172,13 +172,23 @@ export async function approveWorkOrder(id: number, options: CallOptions): Promis
   await delay(options)
   takeForcedFailure()
   const order = orderFor(id, "pending_approval")
+  // Check every cited defect first, so a bad selection changes nothing.
+  const defects = order.defect_ids.map((defectId) => {
+    const defect = store.defects.find((d) => d.id === defectId)
+    if (!defect) throw new ApiError(409, `Defect ${defectId} does not exist`)
+    if (defect.status !== "detected" && defect.status !== "verified") {
+      throw new ApiError(409, `Defect ${defectId} is ${defect.status}, not detected or verified`)
+    }
+    if (defect.work_order_id !== null) {
+      throw new ApiError(409, `Defect ${defectId} is already on work order ${defect.work_order_id}`)
+    }
+    return defect
+  })
   order.status = "approved"
   order.approved_at = malaysiaIso(Date.now())
-  for (const defect of store.defects) {
-    if (order.defect_ids.includes(defect.id)) {
-      defect.status = "scheduled"
-      defect.work_order_id = order.id
-    }
+  for (const defect of defects) {
+    defect.status = "scheduled"
+    defect.work_order_id = order.id
   }
   persist()
   return structuredClone(order)

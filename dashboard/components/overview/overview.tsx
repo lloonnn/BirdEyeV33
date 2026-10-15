@@ -141,20 +141,19 @@ export function Overview() {
         />
       </div>
 
-      {linkError && (
-        <div className="pointer-events-none absolute inset-x-0 top-19 z-10 flex justify-center px-4">
-          <div role="alert" className="panel pointer-events-auto rounded-full px-4 py-2 text-sm">
-            {linkError}
-          </div>
-        </div>
-      )}
-
-      {error !== null && (
-        <div className="pointer-events-none absolute inset-x-0 top-19 z-10 flex justify-center px-4">
-          <div role="alert" className="panel pointer-events-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm">
-            <CloudOffIcon className="size-4 text-status-high" aria-hidden />
-            {failureText(error, lastAt)}
-          </div>
+      {(linkError || error !== null) && (
+        <div className="pointer-events-none absolute inset-x-0 top-19 z-10 flex flex-col items-center gap-2 px-4">
+          {linkError && (
+            <div role="alert" className="panel pointer-events-auto rounded-full px-4 py-2 text-sm">
+              {linkError}
+            </div>
+          )}
+          {error !== null && (
+            <div role="alert" className="panel pointer-events-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm">
+              <CloudOffIcon className="size-4 text-status-high" aria-hidden />
+              {failureText(error, lastAt)}
+            </div>
+          )}
         </div>
       )}
 

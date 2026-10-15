@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { EyeIcon, LockIcon, LockOpenIcon, RotateCcwIcon } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
+import { Button } from "@/components/ui/button"
 
 import { MockLabel } from "@/components/mock-label"
 import { guarded, lock, requestUnlock, useActionLock } from "@/lib/action-lock"
@@ -51,9 +52,10 @@ export function PillMenu() {
     <header className="pointer-events-none fixed inset-x-4 top-4 z-50 flex h-11 items-center justify-end">
       <nav
         aria-label="Main"
-        className="panel pointer-events-auto absolute left-1/2 flex h-11 max-w-[calc(100vw-34.125rem)] -translate-x-1/2 items-center rounded-full p-1"
+        className="panel pointer-events-auto absolute inset-x-0 top-13 flex h-11 items-center rounded-full p-1 lg:inset-x-auto lg:top-auto lg:left-1/2 lg:max-w-[calc(100vw-34.125rem)] lg:-translate-x-1/2"
       >
-        {/* The menu's max width leaves the status pill plus 16 px gaps on both sides. */}
+        {/* Below 1024 px the menu takes its own row under the status pill, so the links keep their width. */}
+        {/* From 1024 px its max width leaves the status pill plus 16 px gaps on both sides. */}
         <Link href="/" className="flex shrink-0 items-center gap-2 pr-2 pl-3 text-sm font-semibold">
           <EyeIcon className="size-4" aria-hidden />
           Bird Eye v33
@@ -108,27 +110,29 @@ export function PillMenu() {
           )}
         </span>
         {/* Locked: click to unlock. Unlocked: click to lock again. */}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => (unlocked ? lock() : void requestUnlock())}
           aria-label={unlocked ? "Actions unlocked. Lock them" : "Actions locked. Unlock them"}
           title={unlocked ? "Actions unlocked: click to lock" : "Actions locked: click to unlock"}
-          className="-mx-1 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+          className="-mx-1 size-7 rounded-full text-muted-foreground"
         >
           {unlocked ? <LockOpenIcon className="size-3.5" aria-hidden /> : <LockIcon className="size-3.5" aria-hidden />}
-        </button>
+        </Button>
         {usesMock("getDefects") && <MockLabel className="rounded-full" />}
         {inMockMode && (
-          <button
+          <Button
             ref={resetButtonRef}
-            type="button"
+            variant="ghost"
+            size="icon-sm"
             onClick={() => guarded(() => setResetting(true))}
             aria-label="Reset mock data"
             title="Reset mock data"
-            className="-ml-1.5 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+            className="-ml-1.5 size-7 rounded-full text-muted-foreground"
           >
             <RotateCcwIcon className="size-3.5" aria-hidden />
-          </button>
+          </Button>
         )}
       </div>
 

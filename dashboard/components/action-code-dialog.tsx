@@ -34,7 +34,7 @@ function CodeForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (phase !== "ready" || !code) return
+    if ((phase !== "ready" && phase !== "error") || !code) return
     setPhase("sending")
     const result = await tryUnlock(code)
     if (result === "ok") return
@@ -89,7 +89,7 @@ function CodeForm() {
             {phase !== "off" && (
               <button
                 type="submit"
-                disabled={phase !== "ready" || !code}
+                disabled={(phase !== "ready" && phase !== "error") || !code}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {phase === "sending" && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
