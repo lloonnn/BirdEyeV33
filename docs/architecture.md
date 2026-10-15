@@ -14,7 +14,7 @@ Bird Eye v33 turns the vehicles that already patrol a township into a daily road
 | Backend API | `backend/` (FastAPI, uv) | The demo laptop | Ingest of records and tracks, model distribution, dashboard data |
 | Database and storage | n/a | PostgreSQL with PostGIS in Docker; crops on local disk behind a storage interface | Defects, sightings, GPS tracks, coverage, work orders, reviews, model versions |
 | Background workers | `backend/` | Same server, scheduled jobs run by APScheduler | Merging sightings into defects, urgency ranking, coverage gaps, repair confirmation |
-| Agent service | `backend/`, package `bird_eye.agents` | Same server, calls a language model API | Drafting work orders and the daily brief; drafts wait for approval |
+| Agent service | `backend/`, package `bird_eye.agents` | Same server, calls the Gemini API | Drafting work orders and the daily brief; drafts wait for approval |
 | Dashboard | `dashboard/` | Browser; Next.js, shadcn/ui Vega style, Recharts, Leaflet | Live map, review queue, work order approval, device status, coverage view |
 | Training pipeline | `ml/` (separate uv project) | Developer machine or cloud GPU, on demand | Training, evaluation, conversion to TensorFlow Lite (LiteRT), publishing |
 
@@ -293,7 +293,7 @@ The escalation agent from the source is not built in this version. Reason: it ne
 
 ### How a run works
 
-A scheduled job starts the agent with its goal and tool list. The agent calls the language model API with tool calling. The backend executes each tool call and returns the result. The loop ends when the agent saves its draft or reaches a step limit. Implement it as a small state machine in Python, or with a framework such as LangGraph.
+A scheduled job starts the agent with its goal and tool list. The agent calls the language model API with tool calling. The backend executes each tool call and returns the result. The loop ends when the agent saves its draft or reaches a step limit. It is a plain Python tool loop calling Gemini through the `google-genai` SDK, with no agent framework (decision 92). Reason: a short loop the team writes is easy to read and log.
 
 ### Guardrails
 
@@ -433,13 +433,12 @@ Only open, verify and mentor items remain. Everything else is settled in [decisi
 1. Which detector, after the licence check against the hackathon IP terms.
 2. The tool path from PyTorch to LiteRT.
 3. Which face and plate blur model runs on the crop.
-4. Which language model the agents use.
-5. What to do before the demo if the RDD2022 model misses most local potholes and cracks. Local labelling is ruled out for now; local testing happens in the pilot.
-6. The urgency cut-offs that set each defect's `urgency_band` to high, medium or low (decision 65).
+4. What to do before the demo if the RDD2022 model misses most local potholes and cracks. Local labelling is ruled out for now; local testing happens in the pilot.
+5. The urgency cut-offs that set each defect's `urgency_band` to high, medium or low (decision 65).
 
 **Verify**
-7. Whether RDD2022 test labels are public. If not, hold out a fixed slice of the training data.
-8. Before any SDP deployment: the licence review deferred by decision 7, including RDD2022's terms, CARTO tiles and every row marked verify in decisions.md.
+6. Whether RDD2022 test labels are public. If not, hold out a fixed slice of the training data.
+7. Before any SDP deployment: the licence review deferred by decision 7, including RDD2022's terms, CARTO tiles and every row marked verify in decisions.md.
 
 **Mentors**
-9. How SDP finds defects today and how long a typical repair takes: the baseline the pilot is measured against.
+8. How SDP finds defects today and how long a typical repair takes: the baseline the pilot is measured against.

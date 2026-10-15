@@ -130,6 +130,14 @@ Status values: **decided**, **starting value** (a tunable number, untested), **y
 | 78 | Phone retry: network errors, 5xx and 429 are retried; any other 4xx marks the batch rejected | Those failures are temporary; another 4xx means the request is wrong and resending cannot fix it. Retries are safe because ingest deduplicates by `client_id`. | decided |
 | 79 | Error status codes: 404 not found, 409 wrong state, 422 validation, all in FastAPI's `{"detail": ...}` format | Clients can tell a missing item from a forbidden action without parsing text | decided |
 | 80 | The dashboard calls the backend directly at `NEXT_PUBLIC_API_BASE_URL`; the backend enables CORS for the dashboard origin; no proxy | One address to configure and no rewrite layer to debug | decided |
+| 82 | `GET /defects` `status=` accepts one status or a comma-separated list | The fix-first list shows several statuses at once, such as verified and scheduled | decided |
+| 83 | Defect object adds `confirmed_at`, `null` until the defect reaches Confirmed | The dashboard can show how long a repair has held | decided |
+| 84 | Defect `work_order_id` is set when a work order covering the defect is approved; it is non-null exactly when a job covers the defect, and `null` otherwise | One clear rule, so the dashboard never shows a draft as a job | decided |
+| 85 | Defect object adds `location_reasons`: a list of `school`, `main_road`, `junction` | The supervisor sees why the location term scored high, without street names | decided |
+| 86 | `GET /defects/{id}` adds `history[]` {`status`, `at`}, oldest first | A reopened defect keeps its past, and the supervisor can see it | decided |
+| 87 | New endpoint `GET /work-orders/{id}` returns one work order, or 404 | The dashboard can open a defect's job from its `work_order_id` | decided |
+| 88 | `GET /reviews` adds `status=` (`pending` or `answered`), default `pending` | The review queue shows only work still to do | decided |
+| 89 | `PATCH /work-orders/{id}` may only remove `defect_ids` in the prototype: an ID not on the work order gives 422, an empty result gives 409 | The agent groups defects; a job with no defects means nothing | decided |
 
 ### Agents
 
@@ -138,7 +146,8 @@ Status values: **decided**, **starting value** (a tunable number, untested), **y
 | 51 | Agents live in the backend package `bird_eye.agents` | They call the same backend functions as the API, so a separate service adds nothing | decided |
 | 52 | The escalation agent is not built in this version | It needs data on which roads were handed to the council, which the pilot does not have | decided |
 | 53 | Daily brief at 07:00 Malaysia time | Before the first shift, as the source requires | starting value |
-| 54 | Language model for the agents | Provider not chosen | you decide |
+| 54 | Language model for the agents | Superseded by decision 92 | superseded |
+| 92 | Agents use Gemini through the `google-genai` SDK with a plain Python tool loop; no agent framework | A short loop the team writes is easy to read and log, and a framework adds code nobody needs for two agents | decided |
 
 ### Dashboard and demo
 
@@ -152,6 +161,8 @@ Status values: **decided**, **starting value** (a tunable number, untested), **y
 | 60 | Plain HTTP in the demo only, phone to laptop on local Wi-Fi, through an Android network security config that allows cleartext for the laptop's address only; any server off the laptop uses HTTPS | A laptop on local Wi-Fi has no trusted certificate; limiting cleartext to one address keeps everything else on HTTPS | decided |
 | 61 | Bundle Geist and Geist Mono in the app instead of Google downloadable fonts | No font certificates file, and type works offline | decided |
 | 81 | Dashboard map tiles: CARTO Dark Matter with CARTO and OpenStreetMap attribution, prototype use only. Tile URL lives in one setting. | A dark base map matches the dark dashboard; one setting lets the tiles change before any SDP deployment without a code change | decided |
+| 90 | The dashboard asks for an action code before supervisor actions. It is a speed bump against stray clicks, not security. The backend stays without authentication (decision 5) and runs on the laptop only. | A stray click must not approve a job or reject a defect; real access control is out of scope | decided |
+| 91 | No street or place names in the UI | The prototype has no reliable name source, and pins are not snapped to roads, so a name could be wrong | decided |
 
 ## 3. Licence register
 
@@ -185,4 +196,4 @@ Not required for the hackathon prototype (decision 7). The rows are kept as a st
 | CameraX, Room, WorkManager, Jetpack Compose | eagle app | Not checked | verify |
 | Google Play services location | GPS in eagle | Not checked | verify |
 | Geist and Geist Mono fonts | Dashboard type (next/font); app type bundled in `eagle/app/src/main/res/font/` from vercel/geist-font v1.7.2 | SIL OFL 1.1 (`OFL.txt` in the release; copy in `eagle/app/src/main/assets/licenses/`) | confirmed |
-| Language model API | Agents | Provider not chosen | undecided |
+| Gemini API via the `google-genai` SDK | Agents (decision 92) | Not checked | review deferred until before any SDP deployment (decision 7) |
