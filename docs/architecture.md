@@ -4,7 +4,9 @@ Sources: `docs/reference/architecture-source.md` (main) and `docs/reference/prop
 
 ## 1. Overview
 
-Bird Eye v33 turns the vehicles that already patrol a township into a daily road inspection network. A dedicated Android phone in each car or van runs a small object detector on camera frames and finds potholes and cracks. Only small records with a blurred crop, a location and a time leave the phone. A backend merges repeated sightings into one defect, ranks defects by urgency and confirms repairs from later passes that actually saw the spot. A dashboard shows staff the map, the review queue, agent-drafted work orders, coverage and device status.
+Bird Eye v33 turns the vehicles that already patrol a township into a daily road inspection network. A dedicated Android phone in each car or van runs a small object detector on camera frames and finds potholes and cracks. Only small records with a blurred crop, a location and a time leave the phone. A backend merges repeated sightings into one defect, ranks defects by urgency and confirms repairs from later passes that actually saw the spot. A dashboard shows staff the map, the review queue, agent-drafted work orders and the daily brief.
+
+**Prototype scope cut:** coverage and device status are not in the prototype (decision 93). This removes the Coverage and Devices pages, `GET /coverage`, `GET /devices`, and the backend storage of heartbeats and tracks. Reason: hackathon time goes to the detection to repair loop. The rest of this document keeps their design for after the prototype.
 
 **Pilot scope:** cars and vans only, one precinct of City of Elmina, no resident-facing screens. Reason: phones are unreliable on motorcycles in Malaysian heat and vibration.
 
@@ -387,7 +389,8 @@ Privacy:
 4. eagle app running the same model on the phone, uploading to the backend.
 5. Repair confirmation and the review queue.
 6. Work order agent and daily brief.
-7. Coverage and device status, if time allows.
+
+Coverage and device status are not built in the prototype (decision 93). Their design stays in this document for after the prototype.
 
 The demo only needs steps 1 to 5 working end to end. The rest can be shown at smaller scale.
 

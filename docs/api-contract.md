@@ -39,8 +39,8 @@ For 404 and 409, `detail` is a string. For 422, FastAPI returns `detail` as a li
 | `GET /config` | Phone | Model version, model hash and thresholds |
 | `GET /models/{version}` | Phone | Raw `.tflite` bytes |
 | `POST /detections/batch` | Phone | `200` with accepted and duplicate counts |
-| `POST /tracks` | Phone | `204` |
-| `POST /heartbeat` | Phone | `204` |
+| `POST /tracks` | Phone | `204`; not in the prototype |
+| `POST /heartbeat` | Phone | `204`; not in the prototype |
 | `GET /defects` | Dashboard | List of defects |
 | `GET /defects/{id}` | Dashboard | One defect with its sightings |
 | `POST /defects/{id}/verify` | Dashboard | The updated defect: Detected to Verified |
@@ -52,8 +52,8 @@ For 404 and 409, `detail` is a string. For 422, FastAPI returns `detail` as a li
 | `POST /work-orders/{id}/approve` | Dashboard | The updated work order; its defects go to Scheduled |
 | `POST /work-orders/{id}/reject` | Dashboard | The updated work order |
 | `POST /work-orders/{id}/done` | Dashboard | The updated work order; its defects go to Fixed |
-| `GET /devices` | Dashboard | List of devices with their latest status |
-| `GET /coverage` | Dashboard | GeoJSON FeatureCollection of road segments |
+| `GET /devices` | Dashboard | List of devices with their latest status; not in the prototype |
+| `GET /coverage` | Dashboard | GeoJSON FeatureCollection of road segments; not in the prototype |
 | `GET /brief/latest` | Dashboard | The latest daily brief, or `404` |
 
 ## Phone endpoints
@@ -133,6 +133,8 @@ Response `200`:
 
 ### `POST /tracks`
 
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
+
 Sent with each upload batch. Returns `204`.
 
 ```json
@@ -155,6 +157,8 @@ Sent with each upload batch. Returns `204`.
 The backend uses only the active ranges for coverage, so road driven while the phone was paused counts as missed. It estimates frames per segment as active seconds within 10 m of the segment times the range's frame rate. A segment with 6 or more frames on a pass counts as seen (starting value, to be tuned). Reason: the phone sends no per-frame data, so the frame rate in each range is what makes the count possible.
 
 ### `POST /heartbeat`
+
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
 
 Sent every 60 seconds (starting value, to be tuned). Returns `204`.
 
@@ -366,6 +370,8 @@ Returns one work order object, or 404.
 
 ### `GET /devices`
 
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
+
 Returns a JSON array, one entry per device, built from the `devices` table and the device's latest heartbeat:
 
 ```json
@@ -394,6 +400,8 @@ Returns a JSON array, one entry per device, built from the `devices` table and t
 The backend sets `unreachable` to `true` after 5 minutes without a heartbeat (starting value, to be tuned). Reason: the backend decides it once, so every dashboard screen agrees.
 
 ### `GET /coverage`
+
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
 
 Query parameters: `bbox` (`minLon,minLat,maxLon,maxLat`) and `since` (a timestamp). Returns a GeoJSON FeatureCollection of the road segments inside `bbox`:
 
