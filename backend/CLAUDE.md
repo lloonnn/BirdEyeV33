@@ -1,42 +1,61 @@
 # backend/CLAUDE.md
 
-The Bird Eye v33 backend. It ingests detections, tracks and heartbeats from the eagle app, merges sightings into defects, runs the lifecycle, coverage and urgency jobs, runs the agents and serves the dashboard. Read `../docs/decisions.md`, sections 5 and 6 of `../docs/architecture.md`, and `../docs/api-contract.md` first.
+The Bird Eye v33 backend for the prototype. It stores detection batches from the eagle app, merges sightings into defects, and moves each defect through its lifecycle from Detected to Confirmed. It ranks defects by a visible urgency score and serves the dashboard's defects, reviews, work orders and daily brief. Two Gemini agents draft work orders and the brief; a supervisor acts on every draft.
+
+## Read first
+
+1. `../docs/plans/backend.md`: the phase plan and the rules each phase builds.
+2. `../docs/decisions.md`: it wins over every other file, including this one and the plan.
+3. `../docs/api-contract.md` v0: every endpoint, field, status value and error code.
 
 ## Stack
 
-- Python 3.14 (`.python-version`), uv, `src/` layout, `uv_build` build backend.
-- FastAPI for the API.
-- PostgreSQL with PostGIS, run in Docker on the demo laptop. Crops go to local disk behind a storage interface. Merge uses `ST_DWithin`; the nightly clean-up uses `ST_ClusterDBSCAN`.
-- APScheduler runs scheduled jobs and agent runs inside the backend process.
-- Agents live in the package `bird_eye.agents`.
-
-Current state: the package is still the uv template `backend` (`src/backend/__init__.py`, entry point `backend:main`) with no dependencies. The decided package name for agents is `bird_eye.agents`, so the package will need renaming to `bird_eye`. FastAPI, PostGIS access and APScheduler are not installed yet.
+- Python 3.14 (`.python-version`), uv, `src/` layout, `uv_build`. Project `bird-eye`, package `bird_eye`.
+- FastAPI, SQLAlchemy Core with hand-written SQL, Alembic migrations, pydantic-settings.
+- PostgreSQL with PostGIS in Docker on the laptop. Crops on local disk behind a storage interface.
+- Agents in `bird_eye.agents`: Gemini through `google-genai`, a plain Python tool loop (Phase 5).
 
 ## Commands
 
 Run from `backend/`.
 
 ```bash
-uv sync              # create .venv and install dependencies
-uv run backend       # run the template entry point (prints a greeting)
-uv add <package>     # add a dependency; add a licence register row first
+uv sync                                    # install dependencies
+uv run python -c "import bird_eye"         # check the package imports
+uv add <package>                           # add a licence register row in decisions.md first
+docker compose up -d db                    # start the database
+uv run alembic upgrade head                # run migrations
+uv run uvicorn bird_eye.main:app --host 0.0.0.0 --port 8000   # run the server
+uv run pytest                              # run tests; needs the database
+uv run python scripts/seed.py              # load invented dev data
+uv run python scripts/reset_dev_data.py --yes   # empty the database
+uv run python scripts/scenario.py          # full lifecycle via the API (added in Phase 4)
 ```
-
-- Run the API server: not set up yet.
-- Tests: not set up yet.
-- Lint and format: not set up yet.
-- Database migrations: not set up yet.
 
 ## Rules
 
-- **Clients never touch the database.** The phone and dashboard go through the API only. Reason: one place validates every write.
-- **Deduplicate by `client_id`.** Ingest ignores a detection whose `client_id` is already stored. Reason: the phone retries uploads, and a retry must not create a second sighting.
-- **Agents have no send tool and no status-change tool.** They only read data and save drafts. Reason: nothing leaves the system and no defect changes state without a supervisor.
-- **Every agent claim cites defect IDs.** Every number, date and location in a draft comes from a tool result, and the draft stores the defect IDs it used. Reason: a reviewer can check each claim.
-- **Never install PyTorch here.** Training lives in `../ml/`. Reason: the server must stay small, and this is why `ml/` is a separate uv project.
-- Thresholds such as the merge radius, coverage distance and clean pass count are config values marked as starting values.
-- A segment is seen on a pass when active seconds within 10 m times the range's frame rate reach 6 frames (starting value). `scanning` and `cooling` are active; `paused` is not. A pass is one device's continuous active traversal; same-device passes count separately only if at least 1 hour apart. Coverage and repair confirmation use the same rule.
-- A clean pass is a seen pass with no matching detection. Confirming a fix needs about 3 clean passes on at least 2 different days. The rule does not detect occlusion; the 2-day rule only reduces that risk.
-- Do not snap pins to roads. Store the nearest segment ID for coverage only.
-- Errors use FastAPI's default `{"detail": ...}` format.
-- No authentication in the hackathon build. Do not add keys or logins; they are out of scope.
+- **Package `bird_eye`.** Reason: decision 51 names `bird_eye.agents`.
+- **Responses match api-contract.md v0 exactly.** If a phase needs a shape the contract lacks, list it for the manager chat; never invent one. Reason: the dashboard and app mock against v0.
+- **Errors use FastAPI's `{"detail": ...}`** with 404 not found, 409 wrong status, 422 validation. Reason: decision 79.
+- **Every threshold is a config value** in `bird_eye.settings`, commented `# starting value, to be tuned`. Reason: decision 26.
+- **Deduplicate by `client_id`.** Reason: the phone retries uploads, and a retry must not store a second sighting.
+- **Schema changes only through migrations.** Reason: every copy of the database must match the code.
+- **Never install PyTorch here.** Reason: training lives in `../ml/`, a separate uv project (decision 3).
+- **No authentication.** No keys, logins or roles. Reason: decision 5.
+- **`/dev` routes are mounted only when the dev flag is on**, and return 404 otherwise. They are not part of the contract.
+- **Agents only read and save drafts.** No tool changes a defect's status or sends anything out, and every draft stores the defect IDs it cites.
+- **`.env` is never committed.** `GEMINI_API_KEY` and the database URL live there; `.env.example` lists the names.
+- **Seed data is invented and for development only.** Reset the database before the demo.
+- **Do not commit unless the user asks.**
+
+## Out of scope for the prototype
+
+Do not build these (decision 93 and section 1 of decisions.md):
+- coverage and `GET /coverage`;
+- devices and `GET /devices`;
+- heartbeat storage and `POST /heartbeat`;
+- tracks and `POST /tracks`;
+- road segments from OSM;
+- a scheduler for background jobs;
+- `GET /config` and `GET /models/{version}`;
+- authentication.
