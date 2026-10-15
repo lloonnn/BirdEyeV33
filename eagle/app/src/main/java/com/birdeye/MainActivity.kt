@@ -83,7 +83,7 @@ fun BirdEyeApp(shift: ShiftViewModel) {
     val preview: @Composable (Modifier) -> Unit = { CameraPreview(it) }
 
     // Counts from the Room queue and its log.
-    val todayStartMs = remember { LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+    val todayStartMs = remember(now) { LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
     val defectsToday by remember(todayStartMs) { shift.queue.foundSince(todayStartMs) }.collectAsState(0)
     val recordsWaiting by remember { shift.queue.pendingCount() }.collectAsState(0)
     val rejected by remember { shift.queue.rejectedCount() }.collectAsState(0)

@@ -145,7 +145,7 @@ interface QueueDao {
     @Query("UPDATE detection_log SET uploadedAtMs = :atMs WHERE clientId IN (:ids)")
     suspend fun markUploaded(ids: List<String>, atMs: Long)
 
-    @Query("DELETE FROM detection_log WHERE capturedAtMs < :beforeMs")
+    @Query("DELETE FROM detection_log WHERE capturedAtMs < :beforeMs AND clientId NOT IN (SELECT clientId FROM detections WHERE queueState = 'Pending')")
     suspend fun deleteLogBefore(beforeMs: Long): Int
 
     @Query("SELECT COUNT(*) FROM detections WHERE queueState = 'Rejected'")
@@ -174,7 +174,7 @@ abstract class QueueDb : RoomDatabase() {
             instance ?: Room.databaseBuilder(context.applicationContext, QueueDb::class.java, NAME)
                 // Version 2 changed bbox from pixels to 0 to 1 floats. The queue held only invented
                 // data, so dropping it is safe.
-                .fallbackToDestructiveMigration(dropAllTables = true)
+                .fallbackToDestructiveMigrationFrom(true, 1)
                 .build()
                 .also { instance = it }
         }

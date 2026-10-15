@@ -183,7 +183,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
         lastDistanceFix = null
         shiftStartMs = SystemClock.elapsedRealtime()
         shiftStartWallMs = System.currentTimeMillis()
-        // Keep detection_log small: drop entries older than log_keep_days, once per shift.
+        // Keep detection_log small: drop expired entries unless their detections are still pending.
         viewModelScope.launch {
             val removed = queue.pruneLog(logPruneCutoffMs(shiftStartWallMs, settings.logKeepDays))
             Log.i("BirdEye", "Pruned $removed old detection_log entries")

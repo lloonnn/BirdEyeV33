@@ -83,7 +83,7 @@ class DetectionQueue(context: Context) : QueueStore {
 
     override suspend fun failedAttempt(rows: List<QueuedDetection>) = dao.addAttempt(rows.map { it.clientId })
 
-    /** Deletes detection_log entries captured before [beforeMs]. Run once at shift start. */
+    /** Deletes old log entries except those belonging to pending detections. Run once at shift start. */
     suspend fun pruneLog(beforeMs: Long) = dao.deleteLogBefore(beforeMs)
 
     fun rejectedCount() = dao.rejectedCount()

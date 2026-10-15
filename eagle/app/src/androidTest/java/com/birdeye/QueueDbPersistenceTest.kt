@@ -51,14 +51,43 @@ class QueueDbPersistenceTest {
         reopened.close()
     }
 
-    @Test fun pruneDeletesOnlyLogEntriesOlderThanCutoff() = runBlocking {
+    @Test fun pruneDeletesExpiredEntriesExceptThoseStillPending() = runBlocking {
         val db = open()
         val now = 10L * 86_400_000L
-        listOf("old" to now - 3 * 86_400_000L, "recent" to now - 86_400_000L).forEach { (id, t) ->
+        listOf("old" to now - 3 * 86_400_000L, "pending" to now - 3 * 86_400_000L, "recent" to now - 86_400_000L).forEach { (id, t) ->
             db.dao().insertLog(DetectionLogEntry(id, "pothole", t, 3.1834, 101.5139, 0.9, uploadedAtMs = null))
         }
+        db.dao().insert(
+            QueuedDetection(
+                clientId = "pending",
+                deviceId = "mock-car-01",
+                capturedAt = "2026-10-16T08:14:22+08:00",
+                defectType = "pothole",
+                confidence = 0.9,
+                band = "save",
+                bboxX1 = 0.1f,
+                bboxY1 = 0.2f,
+                bboxX2 = 0.3f,
+                bboxY2 = 0.4f,
+                vehicleLat = 3.1834,
+                vehicleLon = 101.5139,
+                vehicleGpsAccuracyM = 4.2,
+                vehicleHeadingDeg = 87.0,
+                vehicleSpeedKmh = 36.0,
+                distanceAheadM = 14.5,
+                defectLat = 3.1834,
+                defectLon = 101.5142,
+                modelVersion = "test",
+                urgent = false,
+                cropFile = "pending.jpg",
+                queueState = QueueState.Pending,
+                attempts = 0,
+                cropPath = "/tmp/pending.jpg",
+                capturedAtMs = now - 3 * 86_400_000L,
+            ),
+        )
         assertEquals(1, db.dao().deleteLogBefore(logPruneCutoffMs(now, keepDays = 2.0)))
-        assertEquals(listOf("recent"), db.dao().logSince(0).map { it.clientId })
+        assertEquals(setOf("pending", "recent"), db.dao().logSince(0).map { it.clientId }.toSet())
         db.close()
     }
 }
