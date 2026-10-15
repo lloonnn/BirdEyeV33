@@ -176,13 +176,17 @@
  */
 @layer components {
   .panel {
-    background: var(--panel-bg, rgb(38 38 38 / 0.55));
+    /* 0.55, not 0.45: at 0.45 small muted text fell to 4.2:1 over light map areas. */
+    background: var(--panel-bg, rgb(30 30 30 / 0.55));
     /* Literal value: the CSS build drops the unprefixed property when it goes through a variable. */
-    backdrop-filter: blur(16px) saturate(140%);
-    border: 1px solid var(--panel-border, rgb(255 255 255 / 0.08));
+    backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--panel-border, rgb(255 255 255 / 0.1));
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 24px rgb(0 0 0 / 0.35);
     border-radius: 16px;
     padding: 16px;
+    /* Small muted text inside glass only: light enough for 4.5:1 over the
+       lightest map spot behind a panel. The global token is unchanged. */
+    --muted-foreground: #b0b0b0;
   }
 
   .no-glass {

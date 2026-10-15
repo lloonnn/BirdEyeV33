@@ -27,6 +27,10 @@ export type MapPin = {
 // to the same point twice still moves the map.
 export type MapFocus = { lat: number; lon: number; seq: number }
 
+// Fit the map once to these points, keeping them clear of the floating
+// panels: `padding` is [top, right, bottom, left] in pixels.
+export type MapFit = { points: [number, number][]; padding: [number, number, number, number] }
+
 // Ask the map to zoom one step in (+1) or out (-1); `seq` changes each time.
 export type MapZoom = { delta: 1 | -1; seq: number }
 
@@ -40,13 +44,24 @@ type Props = {
   focus?: MapFocus | null
   // Zoom comes from the page's own buttons; Leaflet's control is not shown.
   zoom?: MapZoom | null
+  // First-load fit; applied once, when it first arrives.
+  fit?: MapFit | null
+}
+
+function applyFit(map: L.Map, fit: MapFit) {
+  const [top, right, bottom, left] = fit.padding
+  map.fitBounds(L.latLngBounds(fit.points), {
+    paddingTopLeft: [left, top],
+    paddingBottomRight: [right, bottom],
+    maxZoom: flyToZoom,
+  })
 }
 
 function toBbox(bounds: L.LatLngBounds): Bbox {
   return [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
 }
 
-export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId, focus, zoom }: Props) {
+export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId, focus, zoom, fit }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const pinLayerRef = useRef<L.LayerGroup | null>(null)
@@ -55,12 +70,16 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
   // A focus asked for before the map exists (for example from ?defect=):
   // applied when the map is created.
   const focusRef = useRef(focus)
+  const fitRef = useRef(fit)
+  // The first-load fit happens once only.
+  const fitted = useRef(false)
 
   useEffect(() => {
     onViewChangeRef.current = onViewChange
     onPinClickRef.current = onPinClick
     focusRef.current = focus
-  }, [onViewChange, onPinClick, focus])
+    fitRef.current = fit
+  }, [onViewChange, onPinClick, focus, fit])
 
   useEffect(() => {
     const map = L.map(containerRef.current!, {
@@ -77,7 +96,12 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
     pinLayerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     const pending = focusRef.current
+    const pendingFit = fitRef.current
     if (pending) map.setView([pending.lat, pending.lon], flyToZoom)
+    else if (pendingFit && pendingFit.points.length > 0) {
+      fitted.current = true
+      applyFit(map, pendingFit)
+    }
 
     const report = () => onViewChangeRef.current(toBbox(map.getBounds()))
     map.on("moveend", report)
@@ -127,6 +151,13 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
       marker.addTo(layer)
     }
   }, [pins, selectedId])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!fit || !map || fitted.current || fit.points.length === 0) return
+    fitted.current = true
+    applyFit(map, fit)
+  }, [fit])
 
   useEffect(() => {
     if (!zoom || !mapRef.current) return

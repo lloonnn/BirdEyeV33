@@ -25,6 +25,14 @@ npx shadcn add <component>   # add a shadcn component to components/ui/
 
 - Tests: not set up yet.
 
+## Action code
+
+- Viewing needs no code. The first action in a session (verify, not a defect, mark fixed, review answers, approve, edit or reject a work order, reset mock data) asks for the action code once, then remembers the unlock in `sessionStorage` until the tab closes or someone clicks the lock icon.
+- The code is the server-only env var `ACTION_CODE`, checked by `app/api/unlock/route.ts`. Never name it `NEXT_PUBLIC_`. Reason: `NEXT_PUBLIC_` values are copied into the browser bundle.
+- Locally it is set in `dashboard/.env.local` (ignored by git). On the host it is set in the deployment's environment settings. Never write the value into a tracked file; `.env.example` keeps it empty.
+- If `ACTION_CODE` is not set, every action stays locked and the dialog says "Actions are off on this deployment."
+- It is a speed bump against stray clicks during a demo, not security. Reason: the backend has no authentication in this build (decision 5), so anyone who can reach the API can still call it directly.
+
 ## Rules
 
 - **Map:** load the Leaflet map component with `ssr: false` (`next/dynamic`), and give its container `isolation: isolate`. Reason: Leaflet needs the browser, and dialogs must stay above the map.

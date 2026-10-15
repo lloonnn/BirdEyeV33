@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { EyeIcon, RotateCcwIcon } from "lucide-react"
+import { EyeIcon, LockIcon, LockOpenIcon, RotateCcwIcon } from "lucide-react"
 
 import { ConfirmDialog } from "@/components/confirm-dialog"
 
 import { MockLabel } from "@/components/mock-label"
+import { guarded, lock, requestUnlock, useActionLock } from "@/lib/action-lock"
 import { getReviews, getWorkOrders, inMockMode, resetMockData, usesMock } from "@/lib/api"
 import { useLastUpdated } from "@/lib/last-updated"
 import { navItems } from "@/lib/nav"
@@ -22,6 +23,7 @@ export function PillMenu() {
   const lastUpdated = useLastUpdated()
   const counts = useNavCounts()
   const [resetting, setResetting] = useState(false)
+  const { unlocked } = useActionLock()
   const resetButtonRef = useRef<HTMLButtonElement>(null)
   const badge: Partial<Record<string, number | null>> = { "/review": counts.review, "/work-orders": counts.workOrders }
 
@@ -65,7 +67,7 @@ export function PillMenu() {
                   href={item.url}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "block rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap transition-colors",
+                    "block rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors xl:px-3.5",
                     active
                       ? "bg-primary font-medium text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
@@ -90,7 +92,8 @@ export function PillMenu() {
         </ul>
       </nav>
 
-      <div className="panel pointer-events-auto flex h-11 items-center gap-3 rounded-full py-0 pr-1.5 pl-4 text-xs text-muted-foreground">
+      {/* Tighter spacing below 1280 px keeps the pill clear of the menu. */}
+      <div className="panel pointer-events-auto flex h-11 items-center gap-2 rounded-full py-0 pr-1.5 pl-3 text-xs text-muted-foreground xl:gap-3 xl:pl-4">
         <span>
           {lastUpdated ? (
             <>
@@ -104,12 +107,22 @@ export function PillMenu() {
             "Not updated yet"
           )}
         </span>
+        {/* Locked: click to unlock. Unlocked: click to lock again. */}
+        <button
+          type="button"
+          onClick={() => (unlocked ? lock() : void requestUnlock())}
+          aria-label={unlocked ? "Actions unlocked. Lock them" : "Actions locked. Unlock them"}
+          title={unlocked ? "Actions unlocked: click to lock" : "Actions locked: click to unlock"}
+          className="-mx-1 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+        >
+          {unlocked ? <LockOpenIcon className="size-3.5" aria-hidden /> : <LockIcon className="size-3.5" aria-hidden />}
+        </button>
         {usesMock("getDefects") && <MockLabel className="rounded-full" />}
         {inMockMode && (
           <button
             ref={resetButtonRef}
             type="button"
-            onClick={() => setResetting(true)}
+            onClick={() => guarded(() => setResetting(true))}
             aria-label="Reset mock data"
             title="Reset mock data"
             className="-ml-1.5 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"

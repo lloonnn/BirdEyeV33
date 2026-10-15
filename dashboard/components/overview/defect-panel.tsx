@@ -7,6 +7,7 @@ import { UrgencyBadge } from "@/components/overview/badges"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { FinishJobDialog } from "@/components/overview/finish-job-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { guarded } from "@/lib/action-lock"
 import { cropSrc, finishWorkOrder, getDefect, rejectDefect, verifyDefect } from "@/lib/api"
 import { ApiError, type Defect, type DefectDetail } from "@/lib/api-types"
 import { cleanPassesToConfirm, whyTermMin } from "@/lib/config"
@@ -40,10 +41,10 @@ const termLabels = [
   ["age", "Age"],
 ] as const
 
-// Each urgency term as a few words, for "Why it ranks here". The location
-// term covers school routes, main roads and junctions (architecture.md 5).
-const termWords: Record<(typeof termLabels)[number][0], string> = {
-  type: "pothole",
+// Each urgency term as a few words, for "Why it ranks here". The type term
+// names the defect's own type. The location term covers school routes, main
+// roads and junctions (architecture.md 5).
+const termWords: Record<Exclude<(typeof termLabels)[number][0], "type">, string> = {
   size: "large",
   location: "near a school or busy road",
   age: "open a long time",
@@ -134,7 +135,13 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
   const sightings = current?.detail
     ? [...current.detail.sightings].sort((a, b) => Date.parse(b.captured_at) - Date.parse(a.captured_at))
     : null
-  const reasons = termLabels.filter(([key]) => d.urgency_terms[key] >= whyTermMin).map(([key]) => termWords[key])
+  // Terms at or above the threshold; if none, the single highest term, so
+  // there is always a reason.
+  const strong = termLabels.filter(([key]) => d.urgency_terms[key] >= whyTermMin)
+  const top = [...termLabels].sort(([a], [b]) => d.urgency_terms[b] - d.urgency_terms[a])[0]
+  const reasons = (strong.length > 0 ? strong : [top]).map(([key]) =>
+    key === "type" ? typeName(d.type).toLowerCase() : termWords[key]
+  )
   const refreshing = waitAfter !== null && (current?.key ?? -1) <= waitAfter
   const busy = running !== null || refreshing
 
@@ -197,7 +204,7 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
           <p>{nextStep(d)}</p>
           {d.status === "detected" && (
             <>
-              <button type="button" disabled={busy} onClick={() => run("verify", () => verifyDefect(d.id))} className={primaryButton}>
+              <button type="button" disabled={busy} onClick={() => guarded(() => run("verify", () => verifyDefect(d.id)))} className={primaryButton}>
                 {running === "verify" && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
                 {running === "verify" || (busy && running === null) ? "Verifying…" : "Verify"}
               </button>
@@ -205,11 +212,13 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
                 ref={rejectButtonRef}
                 type="button"
                 disabled={busy}
-                onClick={() => {
-                  rejectConfirmed.current = false
-                  setNotice(null)
-                  setRejecting(true)
-                }}
+                onClick={() =>
+                  guarded(() => {
+                    rejectConfirmed.current = false
+                    setNotice(null)
+                    setRejecting(true)
+                  })
+                }
                 className={outlineButton}
               >
                 {running === "reject" && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
@@ -221,10 +230,12 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                setNotice(null)
-                setConfirming(true)
-              }}
+              onClick={() =>
+                guarded(() => {
+                  setNotice(null)
+                  setConfirming(true)
+                })
+              }
               className={primaryButton}
             >
               {busy && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
@@ -287,10 +298,13 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
           </div>
         )}
 
+        {/* Only urgent defects need a reason; Low omits the line. */}
+        {d.urgency_band !== "low" && (
         <section aria-label="Why it ranks here">
           <h3 className="mb-1.5 text-xs font-medium">Why it ranks here:</h3>
-          <p className="text-muted-foreground">{reasons.length > 0 ? reasons.join(", ") : "no single reason"}</p>
+          <p className="text-muted-foreground">{reasons.join(", ")}</p>
         </section>
+        )}
 
         <button
           type="button"

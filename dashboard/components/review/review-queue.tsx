@@ -6,6 +6,7 @@ import { CloudOffIcon, Loader2Icon } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { guarded } from "@/lib/action-lock"
 import { answerReview, cropSrc, getReviews } from "@/lib/api"
 import { ApiError, type DefectType, type Review, type ReviewAnswer } from "@/lib/api-types"
 import { defectTypes, typeName } from "@/lib/labels"
@@ -142,8 +143,13 @@ export function ReviewQueue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded])
 
+  // Every answer needs the action code once per session.
   function ask(review: Review, kind: Kind) {
     if (running) return
+    void guarded(() => openConfirm(review, kind))
+  }
+
+  function openConfirm(review: Review, kind: Kind) {
     const others = otherTypes(review)
     // With two types, Wrong type means the other one; with more, the dialog asks.
     const newType = kind === "wrong_class" && others.length === 1 ? others[0] : null

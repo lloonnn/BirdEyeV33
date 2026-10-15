@@ -7,6 +7,7 @@ import { Loader2Icon } from "lucide-react"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { UrgencyBadge } from "@/components/overview/badges"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { guarded } from "@/lib/action-lock"
 import { approveWorkOrder, editWorkOrder, finishWorkOrder, rejectWorkOrder } from "@/lib/api"
 import { ApiError, type Defect, type WorkOrder, type WorkOrderChanges } from "@/lib/api-types"
 import { crewName, statusLabel, typeName, workOrderStatusLabel } from "@/lib/labels"
@@ -122,10 +123,13 @@ export function WorkOrderSheet({ order, defects, now, onClose, onChanged }: Prop
     }
   }
 
+  // Every action needs the action code once per session.
   function ask(action: Action) {
-    confirmed.current = false
-    setNotice(null)
-    setAsking(action)
+    void guarded(() => {
+      confirmed.current = false
+      setNotice(null)
+      setAsking(action)
+    })
   }
 
   function close() {
@@ -278,7 +282,9 @@ export function WorkOrderSheet({ order, defects, now, onClose, onChanged }: Prop
                       type="button"
                       disabled={busy}
                       onClick={() =>
-                        setDraft({ description: order.description, crew_type: order.crew_type, keep: [...order.defect_ids] })
+                        guarded(() =>
+                          setDraft({ description: order.description, crew_type: order.crew_type, keep: [...order.defect_ids] })
+                        )
                       }
                       className={outline}
                     >

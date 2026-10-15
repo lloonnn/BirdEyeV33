@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { CloudOffIcon } from "lucide-react"
 
-import type { MapFocus, MapZoom } from "@/components/map/leaflet-map"
+import type { MapFit, MapFocus, MapZoom } from "@/components/map/leaflet-map"
 import { LeafletMap } from "@/components/map/map-loader"
 import { BriefCard } from "@/components/overview/brief-card"
 import { DefectPanel } from "@/components/overview/defect-panel"
@@ -84,6 +84,16 @@ export function Overview() {
   const urgent = useMemo(() => (area.defects ? mostUrgent(area.defects) : null), [area.defects])
   const stats = useMemo(() => (area.defects ? areaStats(area.defects) : null), [area.defects])
 
+  // First load: fit the map to every defect the Overview shows, kept clear of
+  // the left column (16 + 320 + 16 px), the top bar (76), the right panel's
+  // space (16 + 352 + 16) and the stepper (16 + 44 + 16). Skipped when a
+  // ?defect= link asks for one defect.
+  const fit = useMemo<MapFit | null>(() => {
+    if (linkedId || !area.defects) return null
+    const points = area.defects.filter(onOverview).map((d): [number, number] => [d.lat, d.lon])
+    return { points, padding: [76, 384, 76, 352] }
+  }, [area.defects, linkedId])
+
   const onPinClick = useCallback(
     (id: number) => setSelected(shown.find((d) => d.id === id) ?? null),
     [shown]
@@ -127,6 +137,7 @@ export function Overview() {
           selectedId={selected?.id ?? null}
           focus={focus}
           zoom={zoom}
+          fit={fit}
         />
       </div>
 
