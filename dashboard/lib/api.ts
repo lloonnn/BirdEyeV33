@@ -10,6 +10,7 @@ import {
   type Brief,
   type Review,
   type ReviewAnswer,
+  type ReviewStatus,
   type WorkOrder,
   type WorkOrderChanges,
   type WorkOrderStatus,
@@ -23,6 +24,7 @@ type ApiFunction =
   | "verifyDefect"
   | "rejectDefect"
   | "getWorkOrders"
+  | "getWorkOrder"
   | "finishWorkOrder"
   | "approveWorkOrder"
   | "rejectWorkOrder"
@@ -50,7 +52,7 @@ export function usesMock(fn: ApiFunction): boolean {
 
 type CallOptions = { signal?: AbortSignal }
 
-// GET /defects (decisions 63 and 64).
+// GET /defects (decisions 63, 64 and 82).
 export async function getDefects(
   query: DefectsQuery,
   options: CallOptions = {}
@@ -59,13 +61,14 @@ export async function getDefects(
 
   const params = new URLSearchParams({ bbox: query.bbox.join(",") })
   if (query.type) params.set("type", query.type)
-  if (query.status) params.set("status", query.status)
+  if (query.status?.length) params.set("status", query.status.join(","))
   if (query.sort) params.set("sort", query.sort)
   if (query.limit !== undefined) params.set("limit", String(query.limit))
   return request<Defect[]>(`/defects?${params}`, options)
 }
 
-// GET /defects/{id}: the defect plus its sightings, or 404 (decision 66).
+// GET /defects/{id}: the defect plus its sightings and status history, or 404
+// (decisions 66 and 86).
 export async function getDefect(id: number, options: CallOptions = {}): Promise<DefectDetail> {
   if (usesMock("getDefect")) return mock.getDefect(id, options)
   return request<DefectDetail>(`/defects/${id}`, options)
@@ -96,6 +99,12 @@ export async function getWorkOrders(
   return request<WorkOrder[]>(`/work-orders${params}`, options)
 }
 
+// GET /work-orders/{id}: one work order, or 404 (decision 87).
+export async function getWorkOrder(id: number, options: CallOptions = {}): Promise<WorkOrder> {
+  if (usesMock("getWorkOrder")) return mock.getWorkOrder(id, options)
+  return request<WorkOrder>(`/work-orders/${id}`, options)
+}
+
 // POST /work-orders/{id}/done: the job goes from approved to done and all its
 // defects to fixed; no body; returns the updated work order; 409 if the job is
 // not approved (decision 71).
@@ -104,11 +113,15 @@ export async function finishWorkOrder(id: number, options: CallOptions = {}): Pr
   return request<WorkOrder>(`/work-orders/${id}/done`, { ...options, method: "POST" })
 }
 
-// GET /reviews: every review, pending and answered (decision 68). v0 has no
-// status filter, so pages pick the pending ones.
-export async function getReviews(options: CallOptions = {}): Promise<Review[]> {
-  if (usesMock("getReviews")) return mock.getReviews(options)
-  return request<Review[]>("/reviews", options)
+// GET /reviews, optionally for one status; the backend's default is pending
+// (decisions 68 and 88).
+export async function getReviews(
+  query: { status?: ReviewStatus } = {},
+  options: CallOptions = {}
+): Promise<Review[]> {
+  if (usesMock("getReviews")) return mock.getReviews(query, options)
+  const params = query.status ? `?${new URLSearchParams({ status: query.status })}` : ""
+  return request<Review[]>(`/reviews${params}`, options)
 }
 
 // POST /reviews/{id}: the supervisor's answer (decision 69). Returns the
@@ -133,7 +146,9 @@ export async function rejectWorkOrder(id: number, options: CallOptions = {}): Pr
 }
 
 // PATCH /work-orders/{id}: edit a draft's description, crew_type or
-// defect_ids; pending_approval only; returns the updated work order (decision 71).
+// defect_ids; pending_approval only; returns the updated work order (decision
+// 71). defect_ids may only remove defects: an added ID gives 422 and an empty
+// list 409 (decision 89).
 export async function editWorkOrder(id: number, changes: WorkOrderChanges, options: CallOptions = {}): Promise<WorkOrder> {
   if (usesMock("editWorkOrder")) return mock.editWorkOrder(id, changes, options)
   return request<WorkOrder>(`/work-orders/${id}`, { ...options, method: "PATCH", body: changes })

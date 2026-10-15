@@ -161,7 +161,9 @@ export function WorkOrdersPage() {
       </div>
 
       <WorkOrderSheet
-        order={loaded?.orders.find((o) => o.id === openId) ?? null}
+        orderId={openId}
+        listed={loaded?.orders.find((o) => o.id === openId) ?? null}
+        refreshKey={refreshKey}
         defects={loaded?.defects ?? new Map()}
         now={now}
         onClose={() => setOpenId(null)}

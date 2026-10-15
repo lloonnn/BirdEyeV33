@@ -3,7 +3,7 @@
 // precinct of City of Elmina (latitude 3.17 to 3.20, longitude 101.50 to
 // 101.53), not copied from OpenStreetMap or any other source.
 
-import type { Defect, DefectStatus, DefectType, UrgencyBand } from "@/lib/api-types"
+import type { Defect, DefectStatus, DefectType, LocationReason, UrgencyBand } from "@/lib/api-types"
 import { malaysiaIso } from "@/lib/mocks/iso"
 
 // Mock only. The real cut-offs are a backend setting not chosen yet
@@ -85,6 +85,23 @@ const rows: Row[] = [
 
 const HOUR = 60 * 60 * 1000
 
+// Mock only. Why the location term is high (decision 85). The demo pins name
+// their reason; the rest follow the term: 0.8 and up on a main road, 0.6 and
+// up at a junction, lower has no reason.
+const reasonsById: Record<number, LocationReason[]> = {
+  109: ["main_road", "junction"],
+  113: ["school"],
+  117: ["school", "junction"],
+  120: ["main_road"],
+}
+
+export function locationReasons(id: number, location: number): LocationReason[] {
+  if (reasonsById[id]) return [...reasonsById[id]]
+  if (location >= 0.8) return ["main_road"]
+  if (location >= 0.6) return ["junction"]
+  return []
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
@@ -96,7 +113,8 @@ export function band(urgency: number): UrgencyBand {
 }
 
 // Builds the seed defects with times relative to `now`, so "first seen" and
-// "last seen" stay sensible whenever the prototype runs.
+// "last seen" stay sensible whenever the prototype runs. `confirmed_at` is
+// filled in by the seed history (lib/mocks/history.ts).
 export function seedDefects(now: number): Defect[] {
   return rows.map(
     ([id, type, status, lat, lon, size, location, age, sightings, firstDays, lastHours, segmentId, workOrderId]) => {
@@ -118,6 +136,8 @@ export function seedDefects(now: number): Defect[] {
         crop_url: `/crops/mock-${id}.jpg`,
         segment_id: segmentId,
         work_order_id: workOrderId,
+        confirmed_at: null,
+        location_reasons: locationReasons(id, location),
       }
     }
   )

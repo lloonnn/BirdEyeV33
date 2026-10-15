@@ -17,6 +17,17 @@ const dateTime = new Intl.DateTimeFormat("en-GB", {
   timeZone: TZ,
 })
 
+const day = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: TZ,
+})
+
+// "12 Oct", in Malaysia time.
+export function formatDay(iso: string): string {
+  return day.format(new Date(iso))
+}
+
 // "14:05"
 export function formatClock(date: Date): string {
   return clock.format(date)

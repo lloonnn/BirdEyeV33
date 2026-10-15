@@ -106,13 +106,14 @@ export function ReviewQueue() {
 
   useEffect(() => {
     const controller = new AbortController()
-    getReviews({ signal: controller.signal })
+    // The backend's default is pending, the work still to do (decision 88).
+    getReviews({}, { signal: controller.signal })
       .then((reviews) => {
         const at = new Date()
         setLoaded({ key: refreshKey, reviews, at })
         setError(null)
         setLastUpdated(at)
-        setNavCount("review", reviews.filter((r) => r.status === "pending").length)
+        setNavCount("review", reviews.length)
       })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) setError(err)
@@ -120,9 +121,9 @@ export function ReviewQueue() {
     return () => controller.abort()
   }, [refreshKey])
 
-  // v0 returns answered reviews too and has no filter: the page keeps the
-  // pending ones, splits them by type guess and sorts by confidence.
-  const pending = loaded?.reviews.filter((r) => r.status === "pending") ?? null
+  // Pending reviews only, as the backend sends them; the page splits them by
+  // type guess and sorts by confidence.
+  const pending = loaded?.reviews ?? null
   const visibleOf = (list: Review[], t: Tab) =>
     list.filter((r) => t === "all" || r.sighting.defect_type === t).sort((a, b) => b.sighting.confidence - a.sighting.confidence)
   const visible = pending ? visibleOf(pending, tab) : null
@@ -135,7 +136,7 @@ export function ReviewQueue() {
     const target = focusAfterReload.current
     if (!target || !loaded || loaded.key <= target.after) return
     focusAfterReload.current = null
-    const left = visibleOf(loaded.reviews.filter((r) => r.status === "pending"), tab)
+    const left = visibleOf(loaded.reviews, tab)
     const next = left[Math.min(target.index, left.length - 1)]
     if (next) cardRefs.current.get(next.id)?.focus()
     else emptyRef.current?.focus()

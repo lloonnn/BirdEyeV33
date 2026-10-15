@@ -33,8 +33,9 @@ export function PillMenu() {
   useEffect(() => {
     if (counts.review !== null) return
     const controller = new AbortController()
-    getReviews({ signal: controller.signal })
-      .then((reviews) => setNavCount("review", reviews.filter((r) => r.status === "pending").length))
+    // GET /reviews returns pending reviews by default (decision 88).
+    getReviews({}, { signal: controller.signal })
+      .then((reviews) => setNavCount("review", reviews.length))
       .catch(() => {})
     return () => controller.abort()
   }, [counts.review])

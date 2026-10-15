@@ -13,7 +13,10 @@ export type DefectStatus =
 
 export type UrgencyBand = "high" | "medium" | "low"
 
-// Defect object (decision 64).
+// Why the location term scores high (decision 85).
+export type LocationReason = "school" | "main_road" | "junction"
+
+// Defect object (decisions 64, 83 to 85).
 export type Defect = {
   id: number
   type: DefectType
@@ -28,7 +31,11 @@ export type Defect = {
   sighting_count: number
   crop_url: string
   segment_id: number
+  // Non-null exactly when an approved job covers the defect (decision 84).
   work_order_id: number | null
+  // When the defect reached confirmed, or null (decision 83).
+  confirmed_at: string | null
+  location_reasons: LocationReason[]
 }
 
 // One sighting of a defect (decision 66).
@@ -40,17 +47,22 @@ export type Sighting = {
   device_id: string
 }
 
-// GET /defects/{id}: the defect object plus its sightings (decision 66).
-export type DefectDetail = Defect & { sightings: Sighting[] }
+// One status change of a defect (decision 86).
+export type HistoryEntry = { status: DefectStatus; at: string }
+
+// GET /defects/{id}: the defect object plus its sightings and its status
+// history, oldest first (decisions 66 and 86).
+export type DefectDetail = Defect & { sightings: Sighting[]; history: HistoryEntry[] }
 
 // `bbox` for GET /defects: minLon, minLat, maxLon, maxLat.
 export type Bbox = [number, number, number, number]
 
-// Query for GET /defects (decision 63). `bbox` is required.
+// Query for GET /defects (decisions 63 and 82). `bbox` is required. `status`
+// is sent as a comma-separated list.
 export type DefectsQuery = {
   bbox: Bbox
   type?: DefectType
-  status?: DefectStatus
+  status?: DefectStatus[]
   sort?: "urgency_desc"
   limit?: number
 }

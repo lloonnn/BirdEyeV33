@@ -1,4 +1,4 @@
-import type { DefectStatus, DefectType, UrgencyBand, WorkOrderStatus } from "@/lib/api-types"
+import type { DefectStatus, DefectType, LocationReason, UrgencyBand, WorkOrderStatus } from "@/lib/api-types"
 
 // The words that go with every colour and shape (brief section 3).
 
@@ -56,6 +56,20 @@ export const workOrderStatusLabel: Record<WorkOrderStatus, string> = {
   approved: "Approved",
   done: "Done",
   rejected: "Rejected",
+}
+
+// Location reasons in words, for "Why it ranks here" (decision 85). No street
+// or place names (decision 91).
+const locationReasonLabels: Record<LocationReason, string> = {
+  school: "near a school",
+  main_road: "on a main road",
+  junction: "at a junction",
+}
+
+// The words for a location reason. A value this map does not know shows its
+// raw value with a capital first letter.
+export function locationReasonName(reason: string): string {
+  return locationReasonLabels[reason as LocationReason] ?? reason.charAt(0).toUpperCase() + reason.slice(1)
 }
 
 export const bandLabel: Record<UrgencyBand, string> = {

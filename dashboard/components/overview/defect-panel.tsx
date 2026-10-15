@@ -11,8 +11,8 @@ import { guarded } from "@/lib/action-lock"
 import { cropSrc, finishWorkOrder, getDefect, rejectDefect, verifyDefect } from "@/lib/api"
 import { ApiError, type Defect, type DefectDetail } from "@/lib/api-types"
 import { cleanPassesToConfirm, whyTermMin } from "@/lib/config"
-import { statusLabel, typeName } from "@/lib/labels"
-import { formatWhen } from "@/lib/time"
+import { locationReasonName, statusLabel, typeName } from "@/lib/labels"
+import { formatDay, formatWhen } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -41,13 +41,22 @@ const termLabels = [
   ["age", "Age"],
 ] as const
 
+type TermKey = (typeof termLabels)[number][0]
+
 // Each urgency term as a few words, for "Why it ranks here". The type term
-// names the defect's own type. The location term covers school routes, main
-// roads and junctions (architecture.md 5).
-const termWords: Record<Exclude<(typeof termLabels)[number][0], "type">, string> = {
-  size: "large",
-  location: "near a school or busy road",
-  age: "open a long time",
+// names the defect's own type. The location term names its reasons from
+// `location_reasons` (decision 85), and has no words when that list is empty.
+function termWords(d: Defect, key: TermKey): string[] {
+  switch (key) {
+    case "type":
+      return [typeName(d.type).toLowerCase()]
+    case "size":
+      return ["large"]
+    case "location":
+      return d.location_reasons.map(locationReasonName)
+    case "age":
+      return ["open a long time"]
+  }
 }
 
 // What happens next for each status, and the one action if there is one.
@@ -135,13 +144,13 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
   const sightings = current?.detail
     ? [...current.detail.sightings].sort((a, b) => Date.parse(b.captured_at) - Date.parse(a.captured_at))
     : null
-  // Terms at or above the threshold; if none, the single highest term, so
-  // there is always a reason.
-  const strong = termLabels.filter(([key]) => d.urgency_terms[key] >= whyTermMin)
-  const top = [...termLabels].sort(([a], [b]) => d.urgency_terms[b] - d.urgency_terms[a])[0]
-  const reasons = (strong.length > 0 ? strong : [top]).map(([key]) =>
-    key === "type" ? typeName(d.type).toLowerCase() : termWords[key]
-  )
+  // "Detected 12 Oct · Verified 13 Oct", oldest first (decision 86).
+  const timeline = current?.detail?.history.map((h) => `${statusLabel[h.status]} ${formatDay(h.at)}`).join(" · ")
+  // Terms at or above the threshold; if none give words, the highest term
+  // that does, so there is always a reason.
+  const strong = termLabels.filter(([key]) => d.urgency_terms[key] >= whyTermMin).flatMap(([key]) => termWords(d, key))
+  const ranked = [...termLabels].sort(([a], [b]) => d.urgency_terms[b] - d.urgency_terms[a])
+  const reasons = strong.length > 0 ? strong : (ranked.map(([key]) => termWords(d, key)).find((w) => w.length > 0) ?? [])
   const refreshing = waitAfter !== null && (current?.key ?? -1) <= waitAfter
   const busy = running !== null || refreshing
 
@@ -365,25 +374,30 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
               </ul>
             </section>
 
-            <section aria-label="Sightings">
+            <section aria-label="History" className="flex flex-col gap-1.5">
               {current?.error ? (
                 <p className="text-xs text-muted-foreground" role="alert">
                   {detailError(current.error)}
                 </p>
-              ) : !sightings ? (
+              ) : !sightings || timeline === undefined ? (
                 <div className="flex flex-col gap-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-5/6" />
                   <Skeleton className="h-4 w-4/6" />
                 </div>
-              ) : sightings.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Not seen yet.</p>
               ) : (
-                // No vehicle or device names on the Overview.
-                <p className="text-xs">
-                  Seen <span className="tabular">{sightings.length}</span> {sightings.length === 1 ? "time" : "times"}, last{" "}
-                  {formatWhen(sightings[0].captured_at, now)}
-                </p>
+                <>
+                  {timeline && <p className="text-xs">{timeline}</p>}
+                  {sightings.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Not seen yet.</p>
+                  ) : (
+                    // No vehicle or device names on the Overview.
+                    <p className="text-xs">
+                      Seen <span className="tabular">{sightings.length}</span> {sightings.length === 1 ? "time" : "times"},
+                      last {formatWhen(sightings[0].captured_at, now)}
+                    </p>
+                  )}
+                </>
               )}
             </section>
           </div>

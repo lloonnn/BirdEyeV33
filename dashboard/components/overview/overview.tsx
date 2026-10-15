@@ -12,7 +12,7 @@ import { toPin } from "@/components/overview/defect-pins"
 import { MapLegend } from "@/components/overview/map-legend"
 import { MostUrgent } from "@/components/overview/most-urgent"
 import { Stepper } from "@/components/overview/stepper"
-import { areaStats, mostUrgent, onOverview } from "@/components/overview/summary"
+import { areaStats, mostUrgent, overviewStatuses, unscheduledStatuses } from "@/components/overview/summary"
 import { SummaryCard } from "@/components/overview/summary-card"
 import { useDefects } from "@/components/overview/use-defects"
 import { getDefect } from "@/lib/api"
@@ -20,8 +20,11 @@ import { ApiError, type Bbox, type Defect, type DefectsQuery } from "@/lib/api-t
 import { areaBounds, defectsReloadDebounceMs } from "@/lib/config"
 import { formatClock } from "@/lib/time"
 
-// The whole pilot area, most urgent first: feeds Most urgent and the summary.
-const areaQuery: DefectsQuery = { bbox: areaBounds, sort: "urgency_desc" }
+// The whole pilot area: every defect the Overview shows (the open count, the
+// first fit and the job dialog's names), and the ones still needing a
+// decision, most urgent first (Most urgent and the fix first count).
+const openQuery: DefectsQuery = { bbox: areaBounds, status: overviewStatuses }
+const unscheduledQuery: DefectsQuery = { bbox: areaBounds, status: unscheduledStatuses, sort: "urgency_desc" }
 
 function failureText(error: unknown, lastAt: Date | null): string {
   const head =
@@ -74,15 +77,19 @@ export function Overview() {
 
   useEffect(() => () => clearTimeout(debounce.current), [])
 
-  const view = useDefects(bbox ? { bbox } : null, refreshKey)
-  const area = useDefects(areaQuery, refreshKey)
-
   // Detected, verified and scheduled only; keep the last data on screen while
   // a new area loads or the server is down.
-  const shown = useMemo(() => (view.defects ?? []).filter(onOverview), [view.defects])
+  const view = useDefects(bbox ? { bbox, status: overviewStatuses } : null, refreshKey)
+  const area = useDefects(openQuery, refreshKey)
+  const unscheduled = useDefects(unscheduledQuery, refreshKey)
+
+  const shown = useMemo(() => view.defects ?? [], [view.defects])
   const pins = useMemo(() => shown.map(toPin), [shown])
-  const urgent = useMemo(() => (area.defects ? mostUrgent(area.defects) : null), [area.defects])
-  const stats = useMemo(() => (area.defects ? areaStats(area.defects) : null), [area.defects])
+  const urgent = useMemo(() => (unscheduled.defects ? mostUrgent(unscheduled.defects) : null), [unscheduled.defects])
+  const stats = useMemo(
+    () => (area.defects && unscheduled.defects ? areaStats(area.defects, unscheduled.defects) : null),
+    [area.defects, unscheduled.defects]
+  )
 
   // First load: fit the map to every defect the Overview shows, kept clear of
   // the left column (16 + 320 + 16 px), the top bar (76), the right panel's
@@ -90,7 +97,7 @@ export function Overview() {
   // ?defect= link asks for one defect.
   const fit = useMemo<MapFit | null>(() => {
     if (linkedId || !area.defects) return null
-    const points = area.defects.filter(onOverview).map((d): [number, number] => [d.lat, d.lon])
+    const points = area.defects.map((d): [number, number] => [d.lat, d.lon])
     return { points, padding: [76, 384, 76, 352] }
   }, [area.defects, linkedId])
 
@@ -114,8 +121,8 @@ export function Overview() {
   const stepIndex = selected && urgent ? urgent.findIndex((d) => d.id === selected.id) : -1
   const reloadAll = useCallback(() => setRefreshKey((k) => k + 1), [])
 
-  const error = view.error ?? area.error
-  const lastAt = [view.at, area.at].reduce<Date | null>(
+  const error = view.error ?? area.error ?? unscheduled.error
+  const lastAt = [view.at, area.at, unscheduled.at].reduce<Date | null>(
     (latest, at) => (at && (!latest || at > latest) ? at : latest),
     null
   )
@@ -161,10 +168,10 @@ export function Overview() {
       {/* Scrolls only if an open brief makes the column taller than the screen. */}
       <div className="absolute top-19 left-4 z-10 flex max-h-[calc(100vh-5.75rem)] w-80 flex-col gap-4 overflow-y-auto rounded-[16px] [scrollbar-width:none]">
         <BriefCard refreshKey={refreshKey} />
-        <SummaryCard stats={stats} loading={area.loading} />
+        <SummaryCard stats={stats} loading={area.loading || unscheduled.loading} />
         <MostUrgent
           defects={urgent}
-          loading={area.loading}
+          loading={unscheduled.loading}
           selectedId={selected?.id ?? null}
           now={now}
           onSelect={onListSelect}

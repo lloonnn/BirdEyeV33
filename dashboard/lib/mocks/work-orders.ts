@@ -3,8 +3,9 @@
 // are done (their defects are fixed or confirmed), jobs 3 to 5 are approved
 // (their defects are scheduled). Jobs 6 and 7 are agent drafts waiting for
 // approval and cite verified defects; job 8 is a draft a supervisor rejected.
-// Draft-cited defects keep `work_order_id` null until approval: v0 does not
-// say whether a draft "covers" a defect.
+// Draft-cited defects keep `work_order_id` null until approval (decision 84).
+// Jobs 1 and 2 were approved after every defect in them was first seen, so
+// the defects' status history stays in order.
 
 import type { WorkOrder, WorkOrderStatus } from "@/lib/api-types"
 import { malaysiaIso } from "@/lib/mocks/iso"
@@ -22,8 +23,8 @@ type Row = [
 ]
 
 const rows: Row[] = [
-  [1, "done", "patching", "Patch a pothole and seal three cracks along the main loop road.", [131, 132, 133, 134], 30, 29],
-  [2, "done", "patching", "Patch two potholes and seal three cracks in the north residential streets.", [129, 130, 135, 136, 137], 34, 33],
+  [1, "done", "patching", "Patch a pothole and seal three cracks along the main loop road.", [131, 132, 133, 134], 15, 14.5],
+  [2, "done", "patching", "Patch two potholes and seal three cracks in the north residential streets.", [129, 130, 135, 136, 137], 12.5, 12],
   [3, "approved", "patching", "Patch a pothole and seal the crack beside it at the same corner.", [124, 125], 3, 2],
   [4, "approved", "crack sealing", "Seal a crack near the school route.", [126], 4, 3],
   [5, "approved", "patching", "Patch a pothole and seal a crack on the same street.", [127, 128], 2, 1],
