@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
@@ -28,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import com.birdeye.ui.theme.BirdEyeTheme
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -35,6 +38,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Uploads.schedulePeriodic(this)
         if (!BuildConfig.CAMERA_HEIGHT_SET) {
             Log.w(
                 "BirdEye",
@@ -78,6 +82,14 @@ fun BirdEyeApp(shift: ShiftViewModel) {
     }
     val preview: @Composable (Modifier) -> Unit = { CameraPreview(it) }
 
+    // Counts from the Room queue and its log.
+    val todayStartMs = remember(now) { LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+    val defectsToday by remember(todayStartMs) { shift.queue.foundSince(todayStartMs) }.collectAsState(0)
+    val recordsWaiting by remember { shift.queue.pendingCount() }.collectAsState(0)
+    val rejected by remember { shift.queue.rejectedCount() }.collectAsState(0)
+    val foundThisShift by remember(shift.shiftStartWallMs) { shift.queue.foundSince(shift.shiftStartWallMs) }.collectAsState(0)
+    val uploadedThisShift by remember(shift.shiftStartWallMs) { shift.queue.uploadedSince(shift.shiftStartWallMs) }.collectAsState(0)
+
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         when (shift.screen) {
             Screen.StartShift -> {
@@ -115,22 +127,30 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                 BackHandler {}
                 ScanningScreen(
                     cooling = shift.cooling,
-                    defectsToday = 0, // placeholder until the queue exists (phase 2), shown with MOCK
-                    recordsWaiting = 0, // placeholder until the queue exists (phase 2), shown with MOCK
+                    defectsToday = defectsToday,
+                    recordsWaiting = recordsWaiting,
+                    uploadsCompleted = uploadedThisShift,
+                    rejected = rejected,
+                    showMock = Api.isMock,
                     endShiftReason = shift.endShiftReason(now),
                     noGpsSeconds = shift.settings.endShiftNoFixS.toInt(),
                     // Debug builds only. The demo uses a release build, so the toggle is hidden there.
                     showDebug = BuildConfig.DEBUG,
                     onEndShift = { shift.endShift() },
                     onToggleCooling = { shift.cooling = !shift.cooling },
+                    canAddFake = shift.lastFix != null,
+                    onAddFake = { shift.addFakeDetection() },
+                    mockFails = shift.mockFails,
+                    onToggleMockFails = { shift.toggleMockFails() },
                     preview = preview,
                 )
             }
 
             Screen.EndOfShift -> EndOfShiftScreen(
                 distanceKm = shift.distanceM / 1000,
-                defectsFound = 0, // placeholder until the queue exists (phase 2), shown with MOCK
-                uploadsCompleted = 0, // placeholder until uploads exist (phase 2), shown with MOCK
+                defectsFound = foundThisShift,
+                uploadsCompleted = uploadedThisShift,
+                showMock = Api.isMock,
                 onNewShift = { shift.newShift() },
             )
         }

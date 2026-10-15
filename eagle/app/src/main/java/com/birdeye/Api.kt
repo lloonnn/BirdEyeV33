@@ -1,0 +1,39 @@
+package com.birdeye
+
+import android.content.Context
+import android.util.Log
+import androidx.core.content.edit
+
+/**
+ * The one place that reads birdeye.api (BuildConfig.BIRDEYE_API, from local.properties).
+ * Everything else asks this object for a [BirdEyeApi] and never knows which one it got.
+ */
+object Api {
+    /** True while the app talks to the mock. Screens show the MOCK label while this is true. */
+    val isMock: Boolean = BuildConfig.BIRDEYE_API == "mock"
+
+    /** Device id sent with every record. Mock ids start with "mock-" (plan rule 3); real ids come in phase 3. */
+    val deviceId: String = if (isMock) "mock-car-01" else error("birdeye.api=real: device id is phase 3")
+
+    @Volatile private var instance: BirdEyeApi? = null
+
+    fun get(context: Context): BirdEyeApi = instance ?: synchronized(this) {
+        instance ?: create(context.applicationContext).also { instance = it }
+    }
+
+    private fun create(context: Context): BirdEyeApi = when (BuildConfig.BIRDEYE_API) {
+        "mock" -> MockBirdEyeApi(failUploads = { mockFails(context) }, log = { Log.i("BirdEye", it) })
+        // The build already rejects "real" until phase 3; this is a second guard.
+        else -> error("birdeye.api=${BuildConfig.BIRDEYE_API}: the real backend client is not built yet (phase 3)")
+    }
+
+    // Debug setting for the mock, kept in preferences so the upload worker sees the same value.
+    private const val PREFS = "mock_api"
+    private const val KEY_FAIL = "fail_uploads"
+
+    fun mockFails(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_FAIL, false)
+
+    fun setMockFails(context: Context, fail: Boolean) =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean(KEY_FAIL, fail) }
+}

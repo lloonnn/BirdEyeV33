@@ -65,7 +65,7 @@ fun StartShiftScreen(
                 R.string.start_shift,
                 Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
             )
-            MockLabel()
+            if (Api.isMock) MockLabel()
         }
         Box(
             Modifier
@@ -130,6 +130,7 @@ fun mountPasses(tilt: Tilt?, settings: AppSettings): Boolean =
 internal val PreviewSettings = AppSettings(
     mountTiltMinDeg = 2.0, mountTiltMaxDeg = 20.0, gpsFixMaxAgeS = 5.0, gpsFixMaxAccuracyM = 10.0, stillSpeedMaxMps = 0.5,
     endShiftStillS = 10.0, endShiftNoFixS = 30.0, distanceMaxAccuracyM = 20.0, scanningBrightness = 0.1f,
+    uploadMaxRecords = 50, uploadBackoffS = 30.0, logKeepDays = 2.0,
 )
 
 @Preview(name = "Start shift, checks failing", widthDp = 400, heightDp = 900)

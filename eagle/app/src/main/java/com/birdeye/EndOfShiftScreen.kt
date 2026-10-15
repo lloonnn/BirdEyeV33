@@ -21,7 +21,7 @@ import com.birdeye.ui.theme.PatrolSpacing
 
 /** Shift summary, calculated on the phone. No shift record goes to the server (out of scope). */
 @Composable
-fun EndOfShiftScreen(distanceKm: Double, defectsFound: Int, uploadsCompleted: Int, onNewShift: () -> Unit) {
+fun EndOfShiftScreen(distanceKm: Double, defectsFound: Int, uploadsCompleted: Int, showMock: Boolean, onNewShift: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
@@ -36,12 +36,11 @@ fun EndOfShiftScreen(distanceKm: Double, defectsFound: Int, uploadsCompleted: In
                 R.string.end_of_shift,
                 Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
             )
-            MockLabel()
+            if (showMock) MockLabel()
         }
         Counter(stringResource(R.string.distance_value, "%.2f".format(distanceKm)), R.string.distance)
         Counter(defectsFound.toString(), R.string.defects_found)
         Counter(uploadsCompleted.toString(), R.string.uploads_completed)
-        MockLabel(note = stringResource(R.string.mock_counts_note))
         Spacer(Modifier.weight(1f))
         PatrolButton(R.string.new_shift, onNewShift)
     }
@@ -51,6 +50,6 @@ fun EndOfShiftScreen(distanceKm: Double, defectsFound: Int, uploadsCompleted: In
 @Composable
 internal fun EndOfShiftPreview() {
     BirdEyeTheme(darkTheme = true) {
-        EndOfShiftScreen(distanceKm = 12.4, defectsFound = 0, uploadsCompleted = 0, onNewShift = {})
+        EndOfShiftScreen(distanceKm = 12.4, defectsFound = 3, uploadsCompleted = 3, showMock = true, onNewShift = {})
     }
 }

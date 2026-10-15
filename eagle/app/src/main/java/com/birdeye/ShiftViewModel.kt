@@ -12,12 +12,16 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 enum class Screen { StartShift, Scanning, EndOfShift }
 
@@ -43,6 +47,30 @@ enum class EndShiftReason { Still, NoGps }
 class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     val config = Settings.config(app)
     val settings = Settings.app(app)
+    val queue = DetectionQueue(app)
+
+    /** Wall-clock start of the current shift, for the End of shift counts. */
+    var shiftStartWallMs by mutableLongStateOf(System.currentTimeMillis())
+        private set
+
+    /** Debug: the mock fails every call, to test retries. Kept in preferences so the worker sees it. */
+    var mockFails by mutableStateOf(Api.mockFails(app))
+        private set
+
+    fun toggleMockFails() {
+        mockFails = !mockFails
+        Api.setMockFails(getApplication(), mockFails)
+    }
+
+    /** Debug builds only: queue an invented record near the current position. Needs a GPS fix. */
+    fun addFakeDetection() {
+        val fix = lastFix ?: return
+        val (record, jpeg) = FakeDetection.make(fix, Api.deviceId)
+        viewModelScope.launch {
+            val decision = queue.add(record, System.currentTimeMillis(), jpeg)
+            Log.i("BirdEye", "Fake detection ${record.clientId.take(8)}: $decision")
+        }
+    }
 
     var screen by mutableStateOf(Screen.StartShift)
         private set
@@ -60,7 +88,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     var stillSinceMs by mutableStateOf<Long?>(null)
         private set
 
-    var distanceM by mutableStateOf(0.0)
+    var distanceM by mutableDoubleStateOf(0.0)
         private set
 
     private var shiftStartMs = 0L
@@ -154,6 +182,12 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
         distanceM = 0.0
         lastDistanceFix = null
         shiftStartMs = SystemClock.elapsedRealtime()
+        shiftStartWallMs = System.currentTimeMillis()
+        // Keep detection_log small: drop expired entries unless their detections are still pending.
+        viewModelScope.launch {
+            val removed = queue.pruneLog(logPruneCutoffMs(shiftStartWallMs, settings.logKeepDays))
+            Log.i("BirdEye", "Pruned $removed old detection_log entries")
+        }
         cooling = false
         screen = Screen.Scanning
     }
