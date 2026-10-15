@@ -10,11 +10,13 @@ import {
   type Brief,
   type Review,
   type ReviewAnswer,
+  type ReviewStatus,
   type WorkOrder,
   type WorkOrderChanges,
   type WorkOrderStatus,
 } from "@/lib/api-types"
 import { mockLatencyMs } from "@/lib/config"
+import { setStatus } from "@/lib/mocks/history"
 import { malaysiaIso } from "@/lib/mocks/iso"
 import { mergeSighting } from "@/lib/mocks/merge"
 import { mockSightings } from "@/lib/mocks/sightings"
@@ -33,7 +35,8 @@ function delay({ signal }: CallOptions): Promise<void> {
   })
 }
 
-// GET /defects: bbox, type, status, sort=urgency_desc, limit (decision 63).
+// GET /defects: bbox, type, status (one or a list), sort=urgency_desc, limit
+// (decisions 63 and 82).
 export async function getDefects(query: DefectsQuery, options: CallOptions): Promise<Defect[]> {
   await delay(options)
   const [minLon, minLat, maxLon, maxLat] = query.bbox
@@ -44,7 +47,7 @@ export async function getDefects(query: DefectsQuery, options: CallOptions): Pro
       d.lat >= minLat &&
       d.lat <= maxLat &&
       (!query.type || d.type === query.type) &&
-      (!query.status || d.status === query.status)
+      (!query.status?.length || query.status.includes(d.status))
   )
   if (query.sort === "urgency_desc") {
     result = [...result].sort((a, b) => b.urgency - a.urgency)
@@ -53,13 +56,13 @@ export async function getDefects(query: DefectsQuery, options: CallOptions): Pro
   return structuredClone(result)
 }
 
-// GET /defects/{id}: the defect plus its sightings, or 404 in FastAPI's
-// format (decisions 66 and 79).
+// GET /defects/{id}: the defect plus its sightings and status history, or 404
+// in FastAPI's format (decisions 66, 79 and 86).
 export async function getDefect(id: number, options: CallOptions): Promise<DefectDetail> {
   await delay(options)
   const defect = store.defects.find((d) => d.id === id)
   if (!defect) throw new ApiError(404, "Not Found")
-  return structuredClone({ ...defect, sightings: mockSightings(defect) })
+  return structuredClone({ ...defect, sightings: mockSightings(defect), history: store.history[id] ?? [] })
 }
 
 // Testing aid: a failure set on `store.failNext` applies to the next action.
@@ -79,7 +82,7 @@ export async function verifyDefect(id: number, options: CallOptions): Promise<De
   if (defect.status !== "detected") {
     throw new ApiError(409, `Defect ${id} is ${defect.status}, not detected`)
   }
-  defect.status = "verified"
+  setStatus(store.history, defect, "verified")
   persist()
   return structuredClone(defect)
 }
@@ -91,6 +94,14 @@ export async function getWorkOrders(
 ): Promise<WorkOrder[]> {
   await delay(options)
   return structuredClone(store.workOrders.filter((w) => !query.status || w.status === query.status))
+}
+
+// GET /work-orders/{id}: one work order, or 404 (decision 87).
+export async function getWorkOrder(id: number, options: CallOptions): Promise<WorkOrder> {
+  await delay(options)
+  const order = store.workOrders.find((w) => w.id === id)
+  if (!order) throw new ApiError(404, "Not Found")
+  return structuredClone(order)
 }
 
 // POST /work-orders/{id}/done (decision 71): no body; approved to done, and
@@ -105,16 +116,17 @@ export async function finishWorkOrder(id: number, options: CallOptions): Promise
   }
   order.status = "done"
   for (const defect of store.defects) {
-    if (order.defect_ids.includes(defect.id) && defect.status === "scheduled") defect.status = "fixed"
+    if (order.defect_ids.includes(defect.id) && defect.status === "scheduled") setStatus(store.history, defect, "fixed")
   }
   persist()
   return structuredClone(order)
 }
 
-// GET /reviews (decision 68): every review, pending and answered.
-export async function getReviews(options: CallOptions): Promise<Review[]> {
+// GET /reviews?status= (decisions 68 and 88): pending when no status is sent.
+export async function getReviews(query: { status?: ReviewStatus }, options: CallOptions): Promise<Review[]> {
   await delay(options)
-  return structuredClone(store.reviews)
+  const status = query.status ?? "pending"
+  return structuredClone(store.reviews.filter((r) => r.status === status))
 }
 
 // POST /reviews/{id} (decision 69). `correct` merges the sighting like a
@@ -151,7 +163,7 @@ export async function rejectDefect(id: number, options: CallOptions): Promise<De
   if (defect.status !== "detected") {
     throw new ApiError(409, `Defect ${id} is ${defect.status}, not detected`)
   }
-  defect.status = "rejected"
+  setStatus(store.history, defect, "rejected")
   store.negativeExamples.push(defect.crop_url)
   persist()
   return structuredClone(defect)
@@ -187,7 +199,7 @@ export async function approveWorkOrder(id: number, options: CallOptions): Promis
   order.status = "approved"
   order.approved_at = malaysiaIso(Date.now())
   for (const defect of defects) {
-    defect.status = "scheduled"
+    setStatus(store.history, defect, "scheduled")
     defect.work_order_id = order.id
   }
   persist()
@@ -205,8 +217,10 @@ export async function rejectWorkOrder(id: number, options: CallOptions): Promise
   return structuredClone(order)
 }
 
-// PATCH /work-orders/{id} (decision 71): any of description, crew_type,
-// defect_ids; fields left out do not change; pending_approval only.
+// PATCH /work-orders/{id} (decisions 71 and 89): any of description,
+// crew_type, defect_ids; fields left out do not change; pending_approval only.
+// defect_ids may only remove defects: an ID not on the job gives 422, an
+// empty list 409.
 export async function editWorkOrder(
   id: number,
   changes: WorkOrderChanges,
@@ -215,6 +229,11 @@ export async function editWorkOrder(
   await delay(options)
   takeForcedFailure()
   const order = orderFor(id, "pending_approval")
+  if (changes.defect_ids !== undefined) {
+    const added = changes.defect_ids.find((defectId) => !order.defect_ids.includes(defectId))
+    if (added !== undefined) throw new ApiError(422, `Defect ${added} is not on work order ${id}`)
+    if (changes.defect_ids.length === 0) throw new ApiError(409, `Work order ${id} would have no defects`)
+  }
   if (changes.description !== undefined) order.description = changes.description
   if (changes.crew_type !== undefined) order.crew_type = changes.crew_type
   if (changes.defect_ids !== undefined) order.defect_ids = [...changes.defect_ids]

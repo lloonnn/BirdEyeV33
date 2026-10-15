@@ -4,9 +4,10 @@
 // localStorage after every mock action and loaded on start, so it survives a
 // reload. Real mode never reads or writes that storage.
 
-import type { Brief, Defect, Review, WorkOrder } from "@/lib/api-types"
+import type { Brief, Defect, HistoryEntry, Review, WorkOrder } from "@/lib/api-types"
 import { seedBrief } from "@/lib/mocks/brief"
 import { seedDefects } from "@/lib/mocks/defects"
+import { seedHistory } from "@/lib/mocks/history"
 import { seedReviews } from "@/lib/mocks/reviews"
 import { seedWorkOrders } from "@/lib/mocks/work-orders"
 
@@ -14,6 +15,8 @@ export type MockFailure = { status: number; detail: string }
 
 type Saved = {
   defects: Defect[]
+  // Each defect's status history, oldest first, by defect ID (decision 86).
+  history: Record<number, HistoryEntry[]>
   workOrders: WorkOrder[]
   reviews: Review[]
   // The latest brief, or null for "none yet" (GET /brief/latest returns 404).
@@ -24,14 +27,17 @@ type Saved = {
 }
 
 // Bump the version when the saved shape changes, so old saves are ignored.
-const STORAGE_KEY = "bird-eye-mock-v1"
+const STORAGE_KEY = "bird-eye-mock-v2"
 const canPersist = process.env.NEXT_PUBLIC_API_MODE !== "real" && typeof window !== "undefined"
 
 function seed(): Saved {
   const now = Date.now()
+  const defects = seedDefects(now)
+  const workOrders = seedWorkOrders(now)
   return {
-    defects: seedDefects(now),
-    workOrders: seedWorkOrders(now),
+    defects,
+    history: seedHistory(defects, workOrders, now),
+    workOrders,
     reviews: seedReviews(now),
     brief: seedBrief(now),
     negativeExamples: [],
@@ -48,6 +54,8 @@ function load(): Saved | null {
     const saved = JSON.parse(raw) as Partial<Saved>
     const ok =
       Array.isArray(saved.defects) &&
+      typeof saved.history === "object" &&
+      saved.history !== null &&
       Array.isArray(saved.workOrders) &&
       Array.isArray(saved.reviews) &&
       Array.isArray(saved.negativeExamples) &&

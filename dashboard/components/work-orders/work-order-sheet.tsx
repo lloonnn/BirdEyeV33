@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Loader2Icon } from "lucide-react"
 
@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import { UrgencyBadge } from "@/components/overview/badges"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { guarded } from "@/lib/action-lock"
-import { approveWorkOrder, editWorkOrder, finishWorkOrder, rejectWorkOrder } from "@/lib/api"
+import { approveWorkOrder, editWorkOrder, finishWorkOrder, getWorkOrder, rejectWorkOrder } from "@/lib/api"
 import { ApiError, type Defect, type WorkOrder, type WorkOrderChanges } from "@/lib/api-types"
 import { crewName, statusLabel, typeName, workOrderStatusLabel } from "@/lib/labels"
 import { formatWhen } from "@/lib/time"
@@ -18,8 +18,12 @@ type Action = "approve" | "reject" | "done" | "edit"
 type Notice = { tone: "info" | "error"; text: string }
 
 type Props = {
-  // The job to show, from the latest load; null closes the sheet.
-  order: WorkOrder | null
+  // The job to show, by ID; null closes the sheet.
+  orderId: number | null
+  // The page's copy of that job, shown while GET /work-orders/{id} loads.
+  listed: WorkOrder | null
+  // Changes after any action; the sheet reloads the job when it does.
+  refreshKey: number
   defects: Map<number, Defect>
   now: number
   onClose: () => void
@@ -78,22 +82,48 @@ function ActionButton({
   )
 }
 
-function actionNotice(error: unknown): Notice {
+// `emptied` is true when the action was an edit that left no defects: the
+// backend refuses that with 409 (decision 89).
+function actionNotice(error: unknown, emptied: boolean): Notice {
+  if (error instanceof ApiError && error.status === 409 && emptied) {
+    return { tone: "error", text: "A job needs at least one defect. Reject the job instead." }
+  }
   if (error instanceof ApiError && error.status === 409) return { tone: "info", text: "This job changed. Showing the latest." }
   if (error instanceof ApiError && error.status !== 0) return { tone: "error", text: error.message }
   return { tone: "error", text: "Can't reach the server." }
 }
 
+// `key` is the refreshKey the job was loaded for.
+type Fresh = { id: number; key: number; order: WorkOrder }
+
 // Sheet for one work order (brief section 5.3): the agent's description, the
 // defects it cites, and the actions v0 defines for its status. Every action
-// asks first. Drafts can be edited (PATCH) before approval.
-export function WorkOrderSheet({ order, defects, now, onClose, onChanged }: Props) {
+// asks first. Drafts can be edited (PATCH) before approval. The job itself
+// comes from GET /work-orders/{id} (decision 87).
+export function WorkOrderSheet({ orderId, listed, refreshKey, defects, now, onClose, onChanged }: Props) {
+  const [fresh, setFresh] = useState<Fresh | null>(null)
   const [running, setRunning] = useState<Action | null>(null)
   const [asking, setAsking] = useState<Action | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [draft, setDraft] = useState<{ description: string; crew_type: string; keep: number[] } | null>(null)
   const confirmed = useRef(false)
   const buttonRefs = useRef(new Map<Action, HTMLButtonElement>())
+
+  useEffect(() => {
+    if (orderId === null) return
+    const controller = new AbortController()
+    getWorkOrder(orderId, { signal: controller.signal })
+      .then((order) => setFresh({ id: orderId, key: refreshKey, order }))
+      .catch(() => {
+        // The page's copy stays on screen; the page shows load errors.
+      })
+    return () => controller.abort()
+  }, [orderId, refreshKey])
+
+  // Prefer the job as GET /work-orders/{id} returned it for the latest
+  // refresh; until then, the list's copy.
+  const own = fresh?.id === orderId ? fresh : null
+  const order = orderId === null ? null : own && (own.key === refreshKey || !listed) ? own.order : listed
 
   const changes: WorkOrderChanges | null =
     order && draft
@@ -116,8 +146,11 @@ export function WorkOrderSheet({ order, defects, now, onClose, onChanged }: Prop
       if (action === "edit") setDraft(null)
       onChanged()
     } catch (error) {
-      setNotice(actionNotice(error))
-      if (error instanceof ApiError && error.status === 409) onChanged()
+      const emptied = action === "edit" && changes?.defect_ids?.length === 0
+      setNotice(actionNotice(error, emptied))
+      // A 409 means the job changed elsewhere, except for an emptied edit:
+      // the job is as it was, so the draft stays open.
+      if (error instanceof ApiError && error.status === 409 && !emptied) onChanged()
     } finally {
       setRunning(null)
     }
@@ -224,12 +257,12 @@ export function WorkOrderSheet({ order, defects, now, onClose, onChanged }: Prop
                     <button type="button" onClick={() => setDraft(null)} className={outline}>
                       Cancel
                     </button>
-                    {/* v0 is silent on a job with no defects, so at least one stays. */}
+                    {/* Unticking every defect is allowed: the backend answers 409 and the sheet says why (decision 89). */}
                     <ActionButton
                       action="edit"
                       label="Save changes"
                       style={primary}
-                      busy={busy || !changes || Object.keys(changes).length === 0 || draft.keep.length === 0}
+                      busy={busy || !changes || Object.keys(changes).length === 0}
                       spinning={running === "edit"}
                       register={register}
                       onAsk={ask}

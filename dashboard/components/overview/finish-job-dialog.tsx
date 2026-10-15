@@ -5,8 +5,8 @@ import { Loader2Icon } from "lucide-react"
 
 import { TypeBadge } from "@/components/overview/badges"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getWorkOrders } from "@/lib/api"
-import type { Defect, WorkOrder } from "@/lib/api-types"
+import { getWorkOrder } from "@/lib/api"
+import { ApiError, type Defect, type WorkOrder } from "@/lib/api-types"
 import { statusLabel } from "@/lib/labels"
 
 type Props = {
@@ -18,11 +18,10 @@ type Props = {
   onCancel: () => void
 }
 
-type Lookup = { order: WorkOrder | null; error: boolean }
+type Lookup = { order: WorkOrder | null; error: "missing" | "offline" | null }
 
 // Marking a job done changes every defect in it, so ask first (brief 5.1).
-// The job's defect list comes from GET /work-orders?status=approved; v0 has
-// no GET /work-orders/{id}.
+// The job's defect list comes from GET /work-orders/{id} (decision 87).
 export function FinishJobDialog({ workOrderId, known, busy, onConfirm, onCancel }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const [lookup, setLookup] = useState<Lookup | null>(null)
@@ -35,16 +34,19 @@ export function FinishJobDialog({ workOrderId, known, busy, onConfirm, onCancel 
 
   useEffect(() => {
     const controller = new AbortController()
-    getWorkOrders({ status: "approved" }, { signal: controller.signal })
-      .then((orders) => setLookup({ order: orders.find((o) => o.id === workOrderId) ?? null, error: false }))
-      .catch(() => {
-        if (!controller.signal.aborted) setLookup({ order: null, error: true })
+    getWorkOrder(workOrderId, { signal: controller.signal })
+      .then((order) => setLookup({ order, error: null }))
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setLookup({ order: null, error: error instanceof ApiError && error.status === 404 ? "missing" : "offline" })
       })
     return () => controller.abort()
   }, [workOrderId])
 
   const byId = new Map(known.map((d) => [d.id, d]))
   const order = lookup?.order ?? null
+  // Only an approved job can be marked done (decision 71).
+  const approved = order?.status === "approved"
   const n = order?.defect_ids.length ?? 0
 
   return (
@@ -68,9 +70,13 @@ export function FinishJobDialog({ workOrderId, known, busy, onConfirm, onCancel 
             <Skeleton className="h-6 w-full" />
             <Skeleton className="h-6 w-full" />
           </div>
-        ) : lookup.error ? (
+        ) : lookup.error === "offline" ? (
           <p role="alert" className="text-muted-foreground">Can&apos;t reach the server to load this job.</p>
         ) : !order ? (
+          <p role="alert" className="text-muted-foreground">
+            Job <span className="tabular">{workOrderId}</span> no longer exists.
+          </p>
+        ) : !approved ? (
           <p role="alert" className="text-muted-foreground">
             Job <span className="tabular">{workOrderId}</span> is not an approved job, so it cannot be marked done.
           </p>
@@ -114,7 +120,7 @@ export function FinishJobDialog({ workOrderId, known, busy, onConfirm, onCancel 
         <button
           type="button"
           onClick={onConfirm}
-          disabled={busy || !order}
+          disabled={busy || !approved}
           className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {busy && <Loader2Icon className="size-4 animate-spin" aria-hidden />}
