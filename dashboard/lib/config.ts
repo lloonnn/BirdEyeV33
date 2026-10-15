@@ -43,6 +43,11 @@ export const mockLatencyMs = 250
 // (out of scope). Starting value, to be tuned.
 export const areaBounds: [number, number, number, number] = [101.5, 3.17, 101.53, 3.2]
 
+// GET /defects returns at most this many defects when no `limit` is sent
+// (manager's decision, 15 Oct). Mirrors the backend default: the map says
+// pins may be missing when a response has exactly this many.
+export const defectsDefaultLimit = 500
+
 // Rows in the Most urgent list (brief section 5.1).
 export const fixFirstCount = 5
 

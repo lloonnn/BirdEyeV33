@@ -1,5 +1,4 @@
 import type { Defect, DefectStatus } from "@/lib/api-types"
-import { fixFirstCount } from "@/lib/config"
 
 // Statuses the Overview shows, asked of the server with `status=`. Fixed,
 // confirmed and rejected never appear: nothing is left to do for them.
@@ -8,11 +7,6 @@ export const overviewStatuses: DefectStatus[] = ["detected", "verified", "schedu
 
 // Needs a decision: open and not yet in an approved job.
 export const unscheduledStatuses: DefectStatus[] = ["detected", "verified"]
-
-// The unscheduled list arrives sorted by `urgency_desc`; Most urgent is its top.
-export function mostUrgent(unscheduled: Defect[]): Defect[] {
-  return unscheduled.slice(0, fixFirstCount)
-}
 
 export type AreaStats = { open: number; fixFirst: number }
 
