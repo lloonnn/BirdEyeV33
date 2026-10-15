@@ -4,6 +4,7 @@
 // 101.53), not copied from OpenStreetMap or any other source.
 
 import type { Defect, DefectStatus, DefectType, UrgencyBand } from "@/lib/api-types"
+import { malaysiaIso } from "@/lib/mocks/iso"
 
 // Mock only. The real cut-offs are a backend setting not chosen yet
 // (decision 65); the dashboard never computes bands, it reads `urgency_band`.
@@ -11,7 +12,7 @@ const MOCK_HIGH_FROM = 0.65
 const MOCK_MEDIUM_FROM = 0.42
 
 // Mock only. A pothole scores higher than a crack in the type term (decision 44).
-const TYPE_TERM: Record<DefectType, number> = { pothole: 1, crack: 0.4 }
+export const TYPE_TERM: Record<DefectType, number> = { pothole: 1, crack: 0.4 }
 
 type Row = [
   id: number,
@@ -84,16 +85,11 @@ const rows: Row[] = [
 
 const HOUR = 60 * 60 * 1000
 
-// ISO 8601 with the +08:00 offset, as the contract's examples use.
-function malaysiaIso(ms: number): string {
-  return new Date(ms + 8 * HOUR).toISOString().replace(/\.\d{3}Z$/, "+08:00")
-}
-
 function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
-function band(urgency: number): UrgencyBand {
+export function band(urgency: number): UrgencyBand {
   if (urgency >= MOCK_HIGH_FROM) return "high"
   if (urgency >= MOCK_MEDIUM_FROM) return "medium"
   return "low"
