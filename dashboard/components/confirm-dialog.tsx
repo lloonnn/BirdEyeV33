@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils"
 type Props = {
   open: boolean
   title: string
-  // Crop to show, or null for the "Invented crop" placeholder.
-  cropSrc: string | null
-  cropAlt: string
+  // Crop to show, or null for the "Invented crop" placeholder. Leave both out
+  // for a dialog without a photo, such as a work order action.
+  cropSrc?: string | null
+  cropAlt?: string
   description: React.ReactNode
   // Extra content, for example a choice list.
   children?: React.ReactNode
@@ -21,7 +22,7 @@ type Props = {
   finalFocus: () => HTMLElement | boolean
 }
 
-// One confirmation dialog for answers and actions: crop, words, Confirm.
+// One confirmation dialog for answers and actions: optional crop, words, Confirm.
 // Enter confirms (focus starts on Confirm), Esc cancels.
 export function ConfirmDialog({
   open,
@@ -53,7 +54,7 @@ export function ConfirmDialog({
             className="flex flex-col gap-4"
           >
             <DialogTitle>{title}</DialogTitle>
-            {cropSrc ? (
+            {cropAlt === undefined ? null : cropSrc ? (
               // The backend's crop host is not known at build time, so next/image cannot be configured for it.
               // eslint-disable-next-line @next/next/no-img-element
               <img src={cropSrc} alt={cropAlt} className="aspect-video w-full rounded-md object-cover" />

@@ -10,7 +10,7 @@ import { answerReview, cropSrc, getReviews } from "@/lib/api"
 import { ApiError, type DefectType, type Review, type ReviewAnswer } from "@/lib/api-types"
 import { defectTypes, typeName } from "@/lib/labels"
 import { setLastUpdated } from "@/lib/last-updated"
-import { setReviewCount } from "@/lib/review-count"
+import { setNavCount } from "@/lib/nav-counts"
 import { formatClock, formatWhen } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
@@ -111,7 +111,7 @@ export function ReviewQueue() {
         setLoaded({ key: refreshKey, reviews, at })
         setError(null)
         setLastUpdated(at)
-        setReviewCount(reviews.filter((r) => r.status === "pending").length)
+        setNavCount("review", reviews.filter((r) => r.status === "pending").length)
       })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) setError(err)

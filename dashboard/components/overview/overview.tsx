@@ -1,10 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { CloudOffIcon } from "lucide-react"
 
 import type { MapFocus, MapZoom } from "@/components/map/leaflet-map"
 import { LeafletMap } from "@/components/map/map-loader"
+import { BriefCard } from "@/components/overview/brief-card"
 import { DefectPanel } from "@/components/overview/defect-panel"
 import { toPin } from "@/components/overview/defect-pins"
 import { MapLegend } from "@/components/overview/map-legend"
@@ -13,6 +15,7 @@ import { Stepper } from "@/components/overview/stepper"
 import { areaStats, mostUrgent, onOverview } from "@/components/overview/summary"
 import { SummaryCard } from "@/components/overview/summary-card"
 import { useDefects } from "@/components/overview/use-defects"
+import { getDefect } from "@/lib/api"
 import { ApiError, type Bbox, type Defect, type DefectsQuery } from "@/lib/api-types"
 import { areaBounds, defectsReloadDebounceMs } from "@/lib/config"
 import { formatClock } from "@/lib/time"
@@ -39,6 +42,29 @@ export function Overview() {
   // Bumped after every action, so all data reloads from the API.
   const [refreshKey, setRefreshKey] = useState(0)
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // ?defect=<id>, for example from a work order: open that defect on load.
+  const linkedId = Number(useSearchParams().get("defect")) || null
+  const [linkError, setLinkError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!linkedId) return
+    const controller = new AbortController()
+    getDefect(linkedId, { signal: controller.signal })
+      .then((defect) => {
+        setSelected(defect)
+        setFocus({ lat: defect.lat, lon: defect.lon, seq: Date.now() })
+        setLinkError(null)
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return
+        setLinkError(
+          error instanceof ApiError && error.status === 404
+            ? `Defect #${linkedId} no longer exists.`
+            : "Can't reach the server to open that defect."
+        )
+      })
+    return () => controller.abort()
+  }, [linkedId])
 
   // The map reports its visible area on load and after each pan or zoom.
   const onViewChange = useCallback((next: Bbox) => {
@@ -104,6 +130,14 @@ export function Overview() {
         />
       </div>
 
+      {linkError && (
+        <div className="pointer-events-none absolute inset-x-0 top-19 z-10 flex justify-center px-4">
+          <div role="alert" className="panel pointer-events-auto rounded-full px-4 py-2 text-sm">
+            {linkError}
+          </div>
+        </div>
+      )}
+
       {error !== null && (
         <div className="pointer-events-none absolute inset-x-0 top-19 z-10 flex justify-center px-4">
           <div role="alert" className="panel pointer-events-auto flex items-center gap-2 rounded-full px-4 py-2 text-sm">
@@ -114,7 +148,9 @@ export function Overview() {
       )}
 
       {/* Left column: 16 px under the top bar and from the left edge. */}
-      <div className="absolute top-19 left-4 z-10 flex w-80 flex-col gap-4">
+      {/* Scrolls only if an open brief makes the column taller than the screen. */}
+      <div className="absolute top-19 left-4 z-10 flex max-h-[calc(100vh-5.75rem)] w-80 flex-col gap-4 overflow-y-auto rounded-[16px] [scrollbar-width:none]">
+        <BriefCard refreshKey={refreshKey} />
         <SummaryCard stats={stats} loading={area.loading} />
         <MostUrgent
           defects={urgent}

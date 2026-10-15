@@ -1,14 +1,16 @@
 import { useSyncExternalStore } from "react"
 
-// Pending reviews, for the badge on Review in the pill menu. The Review page
-// sets it after every load; the menu loads it once if nothing has yet.
-// Client only.
+// Counts for the badges in the pill menu: pending reviews and work orders
+// waiting for approval. Each page sets its count after every load; the menu
+// loads any count still unknown once. Client only.
 
-let count: number | null = null
+export type NavCounts = { review: number | null; workOrders: number | null }
+
+let counts: NavCounts = { review: null, workOrders: null }
 const listeners = new Set<() => void>()
 
-export function setReviewCount(next: number) {
-  count = next
+export function setNavCount(key: keyof NavCounts, value: number) {
+  counts = { ...counts, [key]: value }
   listeners.forEach((listener) => listener())
 }
 
@@ -17,10 +19,12 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
-export function useReviewCount(): number | null {
+const serverCounts: NavCounts = { review: null, workOrders: null }
+
+export function useNavCounts(): NavCounts {
   return useSyncExternalStore(
     subscribe,
-    () => count,
-    () => null
+    () => counts,
+    () => serverCounts
   )
 }

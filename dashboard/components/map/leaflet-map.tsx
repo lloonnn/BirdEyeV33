@@ -52,11 +52,15 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
   const pinLayerRef = useRef<L.LayerGroup | null>(null)
   const onViewChangeRef = useRef(onViewChange)
   const onPinClickRef = useRef(onPinClick)
+  // A focus asked for before the map exists (for example from ?defect=):
+  // applied when the map is created.
+  const focusRef = useRef(focus)
 
   useEffect(() => {
     onViewChangeRef.current = onViewChange
     onPinClickRef.current = onPinClick
-  }, [onViewChange, onPinClick])
+    focusRef.current = focus
+  }, [onViewChange, onPinClick, focus])
 
   useEffect(() => {
     const map = L.map(containerRef.current!, {
@@ -72,6 +76,8 @@ export default function LeafletMap({ pins, onViewChange, onPinClick, selectedId,
     }).addTo(map)
     pinLayerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+    const pending = focusRef.current
+    if (pending) map.setView([pending.lat, pending.lon], flyToZoom)
 
     const report = () => onViewChangeRef.current(toBbox(map.getBounds()))
     map.on("moveend", report)

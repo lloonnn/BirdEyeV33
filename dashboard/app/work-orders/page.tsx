@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
 
-import { PagePlaceholder } from "@/components/page-placeholder"
+import { WorkOrdersPage } from "@/components/work-orders/work-orders-page"
 
 export const metadata: Metadata = { title: "Work orders" }
 
-export default function WorkOrdersPage() {
-  return <PagePlaceholder title="Work orders" />
+export default function Page() {
+  return <WorkOrdersPage />
 }

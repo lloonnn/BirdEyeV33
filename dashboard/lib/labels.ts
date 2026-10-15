@@ -1,4 +1,4 @@
-import type { DefectStatus, DefectType, UrgencyBand } from "@/lib/api-types"
+import type { DefectStatus, DefectType, UrgencyBand, WorkOrderStatus } from "@/lib/api-types"
 
 // The words that go with every colour and shape (brief section 3).
 
@@ -6,6 +6,30 @@ import type { DefectStatus, DefectType, UrgencyBand } from "@/lib/api-types"
 const typeLabels: Record<DefectType, string> = {
   pothole: "Pothole",
   crack: "Crack",
+}
+
+// Plurals for counted types, lower case: "2 potholes".
+const typePlurals: Record<DefectType, string> = {
+  pothole: "potholes",
+  crack: "cracks",
+}
+
+// "1 pothole", "2 potholes". An unknown type uses its raw value, plus "s".
+export function typeCount(type: string, n: number): string {
+  if (n === 1) return `1 ${typeName(type).toLowerCase()}`
+  return `${n} ${typePlurals[type as DefectType] ?? `${type.toLowerCase()}s`}`
+}
+
+// Crew type labels. `crew_type` is free text in v0, so this map holds the
+// values seen so far.
+const crewLabels: Record<string, string> = {
+  patching: "Patching",
+  "crack sealing": "Crack sealing",
+}
+
+// The label for a crew type. An unknown value shows with a capital first letter.
+export function crewName(crew: string): string {
+  return crewLabels[crew] ?? crew.charAt(0).toUpperCase() + crew.slice(1)
 }
 
 // Every known type, in label order: drives the Review tabs and the Wrong type choice.
@@ -23,6 +47,14 @@ export const statusLabel: Record<DefectStatus, string> = {
   scheduled: "Scheduled",
   fixed: "Fixed",
   confirmed: "Confirmed",
+  rejected: "Rejected",
+}
+
+// Work order statuses in words (decision 70).
+export const workOrderStatusLabel: Record<WorkOrderStatus, string> = {
+  pending_approval: "Pending",
+  approved: "Approved",
+  done: "Done",
   rejected: "Rejected",
 }
 

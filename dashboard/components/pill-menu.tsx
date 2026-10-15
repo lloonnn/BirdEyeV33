@@ -1,15 +1,17 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { EyeIcon } from "lucide-react"
+import { EyeIcon, RotateCcwIcon } from "lucide-react"
+
+import { ConfirmDialog } from "@/components/confirm-dialog"
 
 import { MockLabel } from "@/components/mock-label"
-import { getReviews, usesMock } from "@/lib/api"
+import { getReviews, getWorkOrders, inMockMode, resetMockData, usesMock } from "@/lib/api"
 import { useLastUpdated } from "@/lib/last-updated"
 import { navItems } from "@/lib/nav"
-import { setReviewCount, useReviewCount } from "@/lib/review-count"
+import { setNavCount, useNavCounts } from "@/lib/nav-counts"
 import { formatClock } from "@/lib/time"
 import { cn } from "@/lib/utils"
 
@@ -18,19 +20,30 @@ import { cn } from "@/lib/utils"
 export function PillMenu() {
   const pathname = usePathname()
   const lastUpdated = useLastUpdated()
-  const reviewCount = useReviewCount()
+  const counts = useNavCounts()
+  const [resetting, setResetting] = useState(false)
+  const resetButtonRef = useRef<HTMLButtonElement>(null)
+  const badge: Partial<Record<string, number | null>> = { "/review": counts.review, "/work-orders": counts.workOrders }
 
-  // Load the Review badge once if no page has set it yet.
+  // Load each badge once if no page has set it yet. Badges are optional; the
+  // pages show any error themselves.
   useEffect(() => {
-    if (reviewCount !== null) return
+    if (counts.review !== null) return
     const controller = new AbortController()
     getReviews({ signal: controller.signal })
-      .then((reviews) => setReviewCount(reviews.filter((r) => r.status === "pending").length))
-      .catch(() => {
-        // The badge is optional; the Review page shows any error itself.
-      })
+      .then((reviews) => setNavCount("review", reviews.filter((r) => r.status === "pending").length))
+      .catch(() => {})
     return () => controller.abort()
-  }, [reviewCount])
+  }, [counts.review])
+
+  useEffect(() => {
+    if (counts.workOrders !== null) return
+    const controller = new AbortController()
+    getWorkOrders({ status: "pending_approval" }, { signal: controller.signal })
+      .then((orders) => setNavCount("workOrders", orders.length))
+      .catch(() => {})
+    return () => controller.abort()
+  }, [counts.workOrders])
 
   return (
     <header className="pointer-events-none fixed inset-x-4 top-4 z-50 flex h-11 items-center justify-end">
@@ -59,15 +72,15 @@ export function PillMenu() {
                   )}
                 >
                   {item.title}
-                  {item.url === "/review" && reviewCount !== null && reviewCount > 0 && (
+                  {(badge[item.url] ?? 0) > 0 && (
                     <span
-                      aria-label={`${reviewCount} waiting`}
+                      aria-label={`${badge[item.url]} waiting`}
                       className={cn(
                         "tabular ml-1.5 rounded-full px-1.5 py-px text-[11px]",
                         active ? "bg-primary-foreground/15" : "bg-white/10 text-foreground"
                       )}
                     >
-                      {reviewCount}
+                      {badge[item.url]}
                     </span>
                   )}
                 </Link>
@@ -81,14 +94,42 @@ export function PillMenu() {
         <span>
           {lastUpdated ? (
             <>
-              Updated <span className="tabular text-foreground">{formatClock(lastUpdated)}</span>
+              {/* Below 1280 px only the time shows, so the pill clears the menu. */}
+              <span className="hidden xl:inline">Updated </span>
+              <span className="tabular text-foreground" title="Last updated">
+                {formatClock(lastUpdated)}
+              </span>
             </>
           ) : (
             "Not updated yet"
           )}
         </span>
         {usesMock("getDefects") && <MockLabel className="rounded-full" />}
+        {inMockMode && (
+          <button
+            ref={resetButtonRef}
+            type="button"
+            onClick={() => setResetting(true)}
+            aria-label="Reset mock data"
+            title="Reset mock data"
+            className="-ml-1.5 flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-white/10 hover:text-foreground"
+          >
+            <RotateCcwIcon className="size-3.5" aria-hidden />
+          </button>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={resetting}
+        title="Reset mock data?"
+        description="Every change made in mock mode goes back to the invented starting data. The page reloads."
+        onConfirm={() => {
+          resetMockData()
+          window.location.reload()
+        }}
+        onCancel={() => setResetting(false)}
+        finalFocus={() => resetButtonRef.current ?? true}
+      />
     </header>
   )
 }

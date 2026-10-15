@@ -7,12 +7,15 @@ import {
   type Defect,
   type DefectDetail,
   type DefectsQuery,
+  type Brief,
   type Review,
   type ReviewAnswer,
   type WorkOrder,
+  type WorkOrderChanges,
   type WorkOrderStatus,
 } from "@/lib/api-types"
 import * as mock from "@/lib/mocks/api"
+import { clearSaved } from "@/lib/mocks/store"
 
 type ApiFunction =
   | "getDefects"
@@ -21,6 +24,10 @@ type ApiFunction =
   | "rejectDefect"
   | "getWorkOrders"
   | "finishWorkOrder"
+  | "approveWorkOrder"
+  | "rejectWorkOrder"
+  | "editWorkOrder"
+  | "getBrief"
   | "getReviews"
   | "answerReview"
 
@@ -30,6 +37,9 @@ type ApiFunction =
 const live: ReadonlySet<ApiFunction> = new Set<ApiFunction>([])
 
 const mode = process.env.NEXT_PUBLIC_API_MODE === "real" ? "real" : "mock"
+
+// True in mock mode: the pages may offer "Reset mock data".
+export const inMockMode = mode === "mock"
 const baseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "")
 
 // True when this function returns invented data, so the page shows the
@@ -108,6 +118,45 @@ export async function answerReview(id: number, body: ReviewAnswer, options: Call
   return request<Review>(`/reviews/${id}`, { ...options, method: "POST", body })
 }
 
+// POST /work-orders/{id}/approve: pending_approval to approved; its defects go
+// to scheduled; no body; returns the updated work order; 409 otherwise (decision 71).
+export async function approveWorkOrder(id: number, options: CallOptions = {}): Promise<WorkOrder> {
+  if (usesMock("approveWorkOrder")) return mock.approveWorkOrder(id, options)
+  return request<WorkOrder>(`/work-orders/${id}/approve`, { ...options, method: "POST" })
+}
+
+// POST /work-orders/{id}/reject: pending_approval to rejected; its defects do
+// not change; no body; returns the updated work order; 409 otherwise (decision 71).
+export async function rejectWorkOrder(id: number, options: CallOptions = {}): Promise<WorkOrder> {
+  if (usesMock("rejectWorkOrder")) return mock.rejectWorkOrder(id, options)
+  return request<WorkOrder>(`/work-orders/${id}/reject`, { ...options, method: "POST" })
+}
+
+// PATCH /work-orders/{id}: edit a draft's description, crew_type or
+// defect_ids; pending_approval only; returns the updated work order (decision 71).
+export async function editWorkOrder(id: number, changes: WorkOrderChanges, options: CallOptions = {}): Promise<WorkOrder> {
+  if (usesMock("editWorkOrder")) return mock.editWorkOrder(id, changes, options)
+  return request<WorkOrder>(`/work-orders/${id}`, { ...options, method: "PATCH", body: changes })
+}
+
+// GET /brief/latest: the latest daily brief (decision 74). A 404 means no
+// brief exists yet, so this returns null rather than failing.
+export async function getBrief(options: CallOptions = {}): Promise<Brief | null> {
+  try {
+    if (usesMock("getBrief")) return await mock.getBrief(options)
+    return await request<Brief>("/brief/latest", options)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null
+    throw error
+  }
+}
+
+// Mock mode only: forget saved mock changes. The caller reloads the page so
+// every view starts again from the seed data.
+export function resetMockData() {
+  if (inMockMode) clearSaved()
+}
+
 // Where to load a crop from, or null when the crop is invented (mock mode
 // shows a placeholder instead). The backend serves `crop_url`; its path is
 // not fixed in v0, so a relative path is taken against the backend address.
@@ -118,7 +167,7 @@ export function cropSrc(cropUrl: string, fn: ApiFunction): string | null {
 
 async function request<T>(
   path: string,
-  { signal, method = "GET", body }: CallOptions & { method?: "GET" | "POST"; body?: unknown }
+  { signal, method = "GET", body }: CallOptions & { method?: "GET" | "POST" | "PATCH"; body?: unknown }
 ): Promise<T> {
   let res: Response
   try {

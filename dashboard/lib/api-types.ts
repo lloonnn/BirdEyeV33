@@ -111,3 +111,14 @@ export type ReviewAnswer =
   | { answer: "correct" }
   | { answer: "not_defect" }
   | { answer: "wrong_class"; class: DefectType }
+
+// PATCH /work-orders/{id} body (decision 71): any of these; left-out fields do not change.
+export type WorkOrderChanges = Partial<Pick<WorkOrder, "description" | "crew_type" | "defect_ids">>
+
+// GET /brief/latest (decision 74).
+export type Brief = {
+  id: number
+  created_at: string
+  text: string
+  defect_ids: number[]
+}
