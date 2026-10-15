@@ -47,7 +47,7 @@ class BatchUploaderTest {
         val record = DetectionRecord(
             clientId = id, deviceId = "mock-car-01", capturedAt = "2026-10-16T08:14:22+08:00",
             defectType = DefectType.Pothole, confidence = confidence, band = Band.Save,
-            bbox = listOf(400, 560, 520, 640), vehicle = Vehicle(3.1834, 101.5139, 4.0, 0.0, 0.0),
+            bbox = listOf(0.42f, 0.62f, 0.54f, 0.71f), vehicle = Vehicle(3.1834, 101.5139, 4.0, 0.0, 0.0),
             distanceAheadM = 10.0, defectPoint = LatLon(3.1834, 101.5140), modelVersion = "mock-fake-detection",
             urgent = false, cropFile = "$id.jpg",
         )

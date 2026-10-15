@@ -16,7 +16,7 @@ class MockBirdEyeApiTest {
         defectType = DefectType.Pothole,
         confidence = 0.9,
         band = Band.Save,
-        bbox = listOf(400, 560, 520, 640),
+        bbox = listOf(0.42f, 0.62f, 0.54f, 0.71f),
         vehicle = Vehicle(3.1834, 101.5139, 4.0, 87.0, 30.0),
         distanceAheadM = 10.0,
         defectPoint = LatLon(3.1834, 101.5140),

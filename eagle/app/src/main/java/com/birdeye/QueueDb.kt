@@ -26,10 +26,10 @@ data class QueuedDetection(
     val defectType: String, // defect_type: "pothole" or "crack"
     val confidence: Double, // confidence
     val band: String, // band: "save" or "review"
-    val bboxX1: Int, // bbox[0]
-    val bboxY1: Int, // bbox[1]
-    val bboxX2: Int, // bbox[2]
-    val bboxY2: Int, // bbox[3]
+    val bboxX1: Float, // bbox[0]
+    val bboxY1: Float, // bbox[1]
+    val bboxX2: Float, // bbox[2]
+    val bboxY2: Float, // bbox[3]
     val vehicleLat: Double, // vehicle.lat
     val vehicleLon: Double, // vehicle.lon
     val vehicleGpsAccuracyM: Double, // vehicle.gps_accuracy_m
@@ -161,7 +161,7 @@ interface QueueDao {
     fun uploadedSince(sinceMs: Long): Flow<Int>
 }
 
-@Database(entities = [QueuedDetection::class, DetectionLogEntry::class], version = 1, exportSchema = false)
+@Database(entities = [QueuedDetection::class, DetectionLogEntry::class], version = 2, exportSchema = false)
 abstract class QueueDb : RoomDatabase() {
     abstract fun dao(): QueueDao
 
@@ -171,7 +171,11 @@ abstract class QueueDb : RoomDatabase() {
         @Volatile private var instance: QueueDb? = null
 
         fun get(context: Context): QueueDb = instance ?: synchronized(this) {
-            instance ?: Room.databaseBuilder(context.applicationContext, QueueDb::class.java, NAME).build()
+            instance ?: Room.databaseBuilder(context.applicationContext, QueueDb::class.java, NAME)
+                // Version 2 changed bbox from pixels to 0 to 1 floats. The queue held only invented
+                // data, so dropping it is safe.
+                .fallbackToDestructiveMigration(dropAllTables = true)
+                .build()
                 .also { instance = it }
         }
     }

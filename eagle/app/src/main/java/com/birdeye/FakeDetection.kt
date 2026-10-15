@@ -37,7 +37,7 @@ object FakeDetection {
             defectType = DefectType.Pothole,
             confidence = 0.80 + (taps++ % 19) * 0.01, // save band
             band = Band.Save,
-            bbox = listOf(400, 560, 520, 640),
+            bbox = listOf(0.42f, 0.62f, 0.54f, 0.71f), // normalised, invented
             vehicle = Vehicle(
                 lat = fix.latitude,
                 lon = fix.longitude,

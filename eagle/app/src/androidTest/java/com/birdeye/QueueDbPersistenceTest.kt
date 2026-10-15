@@ -32,7 +32,7 @@ class QueueDbPersistenceTest {
             defectType = DefectType.Crack,
             confidence = 0.91,
             band = Band.Save,
-            bbox = listOf(412, 588, 506, 640),
+            bbox = listOf(0.43f, 0.65f, 0.53f, 0.71f),
             vehicle = Vehicle(3.1834, 101.5139, 4.2, 87.0, 36.0),
             distanceAheadM = 14.5,
             defectPoint = LatLon(3.1834, 101.5142),
@@ -45,7 +45,7 @@ class QueueDbPersistenceTest {
             close()
         }
         val reopened = open()
-        val rows = reopened.dao().pendingBatch(10)
+        val rows = reopened.dao().pendingBatch(10, capturedBeforeMs = Long.MAX_VALUE)
         assertEquals(1, reopened.dao().pendingCount().first())
         assertEquals(record, rows.single().toRecord())
         reopened.close()

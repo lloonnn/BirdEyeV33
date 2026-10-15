@@ -34,7 +34,10 @@ data class DetectionRecord(
     val defectType: DefectType, // defect_type
     val confidence: Double, // confidence
     val band: Band, // band
-    val bbox: List<Int>, // bbox: [x1, y1, x2, y2]
+    // bbox: [x1, y1, x2, y2], floats 0 to 1 against the full camera frame, origin top left (15 Oct).
+    // TODO phase 3: the detector converts model output to this format and undoes letterbox padding.
+    // No detector interface exists yet; move this TODO there when it lands.
+    val bbox: List<Float>,
     val vehicle: Vehicle, // vehicle
     val distanceAheadM: Double, // distance_ahead_m
     val defectPoint: LatLon, // defect_point
