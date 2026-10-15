@@ -24,6 +24,10 @@ import { persist, store } from "@/lib/mocks/store"
 
 type CallOptions = { signal?: AbortSignal }
 
+// GET /defects limits (manager's decision, 15 Oct).
+const DEFAULT_LIMIT = 500
+const MAX_LIMIT = 1000
+
 function delay({ signal }: CallOptions): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason)
@@ -35,10 +39,14 @@ function delay({ signal }: CallOptions): Promise<void> {
   })
 }
 
-// GET /defects: bbox, type, status (one or a list), sort=urgency_desc, limit
-// (decisions 63 and 82).
+// GET /defects: bbox, type, status (one or a list), sort, limit (decisions 63
+// and 82). Sorted by urgency, highest first, by default; urgency_desc is the
+// only sort. limit defaults to 500, and above 1000 fails with 422 (manager's
+// decision, 15 Oct; the contract names no error, so 422 as for validation).
 export async function getDefects(query: DefectsQuery, options: CallOptions): Promise<Defect[]> {
   await delay(options)
+  const limit = query.limit ?? DEFAULT_LIMIT
+  if (limit > MAX_LIMIT) throw new ApiError(422, `limit must be at most ${MAX_LIMIT}`)
   const [minLon, minLat, maxLon, maxLat] = query.bbox
   let result = store.defects.filter(
     (d) =>
@@ -49,11 +57,10 @@ export async function getDefects(query: DefectsQuery, options: CallOptions): Pro
       (!query.type || d.type === query.type) &&
       (!query.status?.length || query.status.includes(d.status))
   )
-  if (query.sort === "urgency_desc") {
+  if ((query.sort ?? "urgency_desc") === "urgency_desc") {
     result = [...result].sort((a, b) => b.urgency - a.urgency)
   }
-  if (query.limit !== undefined) result = result.slice(0, query.limit)
-  return structuredClone(result)
+  return structuredClone(result.slice(0, limit))
 }
 
 // GET /defects/{id}: the defect plus its sightings and status history, or 404

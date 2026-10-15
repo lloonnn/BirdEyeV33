@@ -12,19 +12,25 @@ import { toPin } from "@/components/overview/defect-pins"
 import { MapLegend } from "@/components/overview/map-legend"
 import { MostUrgent } from "@/components/overview/most-urgent"
 import { Stepper } from "@/components/overview/stepper"
-import { areaStats, mostUrgent, overviewStatuses, unscheduledStatuses } from "@/components/overview/summary"
+import { areaStats, overviewStatuses, unscheduledStatuses } from "@/components/overview/summary"
 import { SummaryCard } from "@/components/overview/summary-card"
 import { useDefects } from "@/components/overview/use-defects"
 import { getDefect } from "@/lib/api"
 import { ApiError, type Bbox, type Defect, type DefectsQuery } from "@/lib/api-types"
-import { areaBounds, defectsReloadDebounceMs } from "@/lib/config"
+import { areaBounds, defectsDefaultLimit, defectsReloadDebounceMs, fixFirstCount } from "@/lib/config"
 import { formatClock } from "@/lib/time"
 
 // The whole pilot area: every defect the Overview shows (the open count, the
-// first fit and the job dialog's names), and the ones still needing a
-// decision, most urgent first (Most urgent and the fix first count).
+// first fit and the job dialog's names), the ones still needing a decision
+// (the fix first count), and the top of those by urgency (Most urgent).
 const openQuery: DefectsQuery = { bbox: areaBounds, status: overviewStatuses }
-const unscheduledQuery: DefectsQuery = { bbox: areaBounds, status: unscheduledStatuses, sort: "urgency_desc" }
+const unscheduledQuery: DefectsQuery = { bbox: areaBounds, status: unscheduledStatuses }
+const urgentQuery: DefectsQuery = {
+  bbox: areaBounds,
+  status: unscheduledStatuses,
+  sort: "urgency_desc",
+  limit: fixFirstCount,
+}
 
 function failureText(error: unknown, lastAt: Date | null): string {
   const head =
@@ -82,10 +88,11 @@ export function Overview() {
   const view = useDefects(bbox ? { bbox, status: overviewStatuses } : null, refreshKey)
   const area = useDefects(openQuery, refreshKey)
   const unscheduled = useDefects(unscheduledQuery, refreshKey)
+  const mostUrgent = useDefects(urgentQuery, refreshKey)
 
   const shown = useMemo(() => view.defects ?? [], [view.defects])
   const pins = useMemo(() => shown.map(toPin), [shown])
-  const urgent = useMemo(() => (unscheduled.defects ? mostUrgent(unscheduled.defects) : null), [unscheduled.defects])
+  const urgent = mostUrgent.defects
   const stats = useMemo(
     () => (area.defects && unscheduled.defects ? areaStats(area.defects, unscheduled.defects) : null),
     [area.defects, unscheduled.defects]
@@ -121,8 +128,8 @@ export function Overview() {
   const stepIndex = selected && urgent ? urgent.findIndex((d) => d.id === selected.id) : -1
   const reloadAll = useCallback(() => setRefreshKey((k) => k + 1), [])
 
-  const error = view.error ?? area.error ?? unscheduled.error
-  const lastAt = [view.at, area.at, unscheduled.at].reduce<Date | null>(
+  const error = view.error ?? area.error ?? unscheduled.error ?? mostUrgent.error
+  const lastAt = [view.at, area.at, unscheduled.at, mostUrgent.at].reduce<Date | null>(
     (latest, at) => (at && (!latest || at > latest) ? at : latest),
     null
   )
@@ -132,7 +139,10 @@ export function Overview() {
       ? "Loading defects…"
       : view.defects && shown.length === 0
         ? "No defects in this area."
-        : undefined
+        : // The map sends no limit, so a full response may leave pins out.
+          view.defects && view.defects.length >= defectsDefaultLimit
+          ? `Showing the ${defectsDefaultLimit} most urgent in view. Zoom in for more.`
+          : undefined
 
   return (
     <div className="fixed inset-0">
@@ -171,7 +181,7 @@ export function Overview() {
         <SummaryCard stats={stats} loading={area.loading || unscheduled.loading} />
         <MostUrgent
           defects={urgent}
-          loading={unscheduled.loading}
+          loading={mostUrgent.loading}
           selectedId={selected?.id ?? null}
           now={now}
           onSelect={onListSelect}
