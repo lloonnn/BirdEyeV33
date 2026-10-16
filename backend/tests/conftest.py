@@ -4,6 +4,7 @@
 """
 
 import json
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -30,7 +31,11 @@ FROZEN_NOW = datetime(2026, 10, 15, 10, 0, tzinfo=MYT)
 @pytest.fixture(scope="session")
 def settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
     base = Settings()
-    return Settings(database_url=base.test_database_url, crop_dir=str(tmp_path_factory.mktemp("crops")))
+    return Settings(
+        database_url=base.test_database_url,
+        crop_dir=str(tmp_path_factory.mktemp("crops")),
+        location_points_file=str(DATA / "test_points.toml"),
+    )
 
 
 @pytest.fixture(scope="session")
@@ -84,6 +89,48 @@ def post_batch(client: TestClient, records: list[dict[str, Any]], crops: dict[st
     crops = {"crop.jpg": CROP} if crops is None else crops
     files = [(name, (name, data, "image/jpeg")) for name, data in crops.items()]
     return client.post("/detections/batch", data={"records": json.dumps(records)}, files=files)
+
+
+def at(day: int, hh: int, mm: int = 0) -> str:
+    """A captured_at on 2026-10-<day> in Malaysia time, as the phone sends it."""
+    return datetime(2026, 10, day, hh, mm, tzinfo=MYT).isoformat()
+
+
+def moved(lat: float, lon: float, north_m: float = 0, east_m: float = 0) -> dict[str, float]:
+    """A defect_point moved by metres north and east."""
+    return {"lat": lat + north_m / 111_320, "lon": lon + east_m / (111_320 * math.cos(math.radians(lat)))}
+
+
+BASE = {"lat": 3.1834, "lon": 101.5142}
+
+
+def sight(client: TestClient, client_id: str, when: str, north_m: float = 0, east_m: float = 0, **overrides):
+    """Post one record as its own batch and return the response."""
+    record = make_record(
+        client_id, captured_at=when, defect_point=moved(BASE["lat"], BASE["lon"], north_m, east_m), **overrides
+    )
+    response = post_batch(client, [record])
+    assert response.status_code == 200, response.text
+    return response
+
+
+def defects(client: TestClient) -> list[dict[str, Any]]:
+    return client.get("/defects", params={"bbox": "101.0,3.0,102.0,3.5"}).json()
+
+
+def only_defect(client: TestClient) -> dict[str, Any]:
+    found = defects(client)
+    assert len(found) == 1, found
+    return found[0]
+
+
+def move_defect(engine, defect_id: int, *statuses: str) -> None:
+    """Walk a defect through lifecycle moves that later phases' endpoints will make."""
+    from bird_eye import lifecycle
+
+    with engine.begin() as conn:
+        for status in statuses:
+            lifecycle.transition(conn, defect_id, status)
 
 
 def count(engine, table: str) -> int:

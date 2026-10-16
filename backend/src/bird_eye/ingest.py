@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy import Connection, text
 
+from bird_eye.merge import lock_merges, merge_sighting
 from bird_eye.schemas import BatchResult, DetectionRecord
 from bird_eye.settings import Settings
 from bird_eye.storage import CropStorage
@@ -20,16 +21,6 @@ _INSERT_SIGHTING = text(
     """
 )
 
-_INSERT_DEFECT = text(
-    """
-    INSERT INTO defects (type, status, geog, first_seen, last_seen, type_term, best_sighting_id, cycle)
-    SELECT s.defect_type, 'detected', s.defect_geog, s.captured_at, s.captured_at, :type_term, s.id, 1
-    FROM sightings s WHERE s.id = :sighting_id
-    RETURNING id
-    """
-)
-
-
 def crop_key(client_id: str) -> str:
     # Built from the validated client_id, never from the uploaded part name.
     return f"{client_id}.jpg"
@@ -42,9 +33,13 @@ def store_batch(
     records: list[tuple[DetectionRecord, dict[str, Any]]],
     crops: dict[str, bytes],
 ) -> BatchResult:
-    """Insert each new record and save its crop. A known client_id is a duplicate and stores nothing."""
+    """Insert each new record, save its crop and merge it. A known client_id is a duplicate.
+
+    Records are handled in captured_at order, so a late or shuffled batch merges as it was driven.
+    """
+    lock_merges(conn)
     accepted = duplicates = 0
-    for record, raw in records:
+    for record, raw in sorted(records, key=lambda item: item[0].captured_at):
         key = crop_key(record.client_id)
         sighting_id = conn.execute(
             _INSERT_SIGHTING,
@@ -66,18 +61,6 @@ def store_batch(
             continue
         accepted += 1
         storage.save(key, crops[record.crop_file])
-        if record.band == "save":
-            _create_own_defect(conn, settings, sighting_id, record.defect_type)
-        # Review-band records are stored only; the review queue arrives in Phase 3.
+        merge_sighting(conn, settings, sighting_id)
     return BatchResult(accepted=accepted, duplicates=duplicates)
 
-
-def _create_own_defect(conn: Connection, settings: Settings, sighting_id: int, defect_type: str) -> None:
-    """TEMPORARY, replaced by merge in Phase 2: every save-band sighting gets its own defect."""
-    defect_id = conn.execute(
-        _INSERT_DEFECT, {"sighting_id": sighting_id, "type_term": settings.type_term(defect_type)}
-    ).scalar_one()
-    conn.execute(
-        text("UPDATE sightings SET defect_id = :defect_id, cycle = 1 WHERE id = :sighting_id"),
-        {"defect_id": defect_id, "sighting_id": sighting_id},
-    )

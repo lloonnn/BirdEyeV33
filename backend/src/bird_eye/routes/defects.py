@@ -1,12 +1,13 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import Connection
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import Connection, text
 
 from bird_eye.db import get_conn
-from bird_eye.defects import list_defects
+from bird_eye import lifecycle
+from bird_eye.defects import get_defect, get_defect_detail, list_defects
 from bird_eye.errors import invalid
-from bird_eye.schemas import DEFECT_STATUSES, Defect, DefectType
+from bird_eye.schemas import DEFECT_STATUSES, Defect, DefectDetail, DefectType
 
 router = APIRouter()
 
@@ -57,3 +58,40 @@ def get_defects(
         statuses=_parse_statuses(status),
         limit=effective_limit,
     )
+
+
+@router.get("/defects/{defect_id}", response_model=DefectDetail)
+def get_one_defect(
+    defect_id: int, request: Request, conn: Annotated[Connection, Depends(get_conn)]
+) -> DefectDetail:
+    try:
+        return get_defect_detail(conn, request.app.state.settings, request.app.state.storage, defect_id)
+    except lifecycle.DefectNotFound as exc:
+        raise HTTPException(404, str(exc)) from None
+
+
+@router.post("/defects/{defect_id}/verify", response_model=Defect)
+def verify_defect(defect_id: int, request: Request, conn: Annotated[Connection, Depends(get_conn)]) -> Defect:
+    """Supervisor verify: detected to verified at once, without waiting for passes."""
+    _move(conn, defect_id, "verified")
+    return get_defect(conn, request.app.state.settings, request.app.state.storage, defect_id)
+
+
+@router.post("/defects/{defect_id}/reject", response_model=Defect)
+def reject_defect(defect_id: int, request: Request, conn: Annotated[Connection, Depends(get_conn)]) -> Defect:
+    """Supervisor reject: detected to rejected; its crops become negative training examples."""
+    _move(conn, defect_id, "rejected")
+    conn.execute(text("UPDATE sightings SET negative_example = true WHERE defect_id = :id"), {"id": defect_id})
+    return get_defect(conn, request.app.state.settings, request.app.state.storage, defect_id)
+
+
+def _move(conn: Connection, defect_id: int, to_status: str) -> None:
+    """Verify and reject are allowed only from detected (v0); anything else is 409."""
+    current = conn.execute(
+        text("SELECT status FROM defects WHERE id = :id FOR UPDATE"), {"id": defect_id}
+    ).scalar_one_or_none()
+    if current is None:
+        raise HTTPException(404, f"Defect {defect_id} not found")
+    if current != "detected":
+        raise HTTPException(409, f"Defect {defect_id} is {current}; only a detected defect can be {to_status}")
+    lifecycle.transition(conn, defect_id, to_status, note="supervisor")

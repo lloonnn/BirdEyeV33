@@ -1,2 +1,6 @@
 # Uploaded crops and other local runtime data
 data/
+
+# Python bytecode
+__pycache__/
+*.pyc

@@ -92,3 +92,24 @@ class Defect(BaseModel):
     confirmed_at: datetime | None
     location_reasons: list[LocationReason]
 
+
+
+# GET /defects/{id}
+
+
+class DefectSighting(BaseModel):
+    id: int
+    captured_at: datetime
+    confidence: float
+    crop_url: str
+    device_id: str
+
+
+class HistoryEntry(BaseModel):
+    status: DefectStatus
+    at: datetime
+
+
+class DefectDetail(Defect):
+    sightings: list[DefectSighting]
+    history: list[HistoryEntry]

@@ -33,10 +33,24 @@ class Settings(BaseSettings):
     defects_limit_default: int = 500  # starting value, to be tuned
     defects_limit_max: int = 1000  # starting value, to be tuned
 
+    # Merge and passes.
+    merge_radius_m: float = 8  # starting value, to be tuned
+    pass_gap_minutes: float = 60  # starting value, to be tuned
+    passes_to_verify: int = 3  # starting value, to be tuned
+
     # Urgency terms, each from 0 to 1.
     type_term_pothole: float = 1.0  # starting value, to be tuned
     type_term_crack: float = 0.5  # starting value, to be tuned
+    # Box area, as a share of the frame, that scores 1.0 on the size term.
+    size_area_max: float = 0.05  # starting value, to be tuned
     age_full_days: float = 30  # starting value, to be tuned
+
+    # Location term: invented points for the test area (no road segments in the prototype).
+    # A relative path is read from the directory the server runs in, backend/.
+    location_points_file: str = "config/test_area_points.toml"
+    location_radius_school_m: float = 300  # starting value, to be tuned
+    location_radius_main_road_m: float = 20  # starting value, to be tuned
+    location_radius_junction_m: float = 30  # starting value, to be tuned
 
     # Urgency weights start equal (decision 45).
     weight_type: float = 0.25  # starting value, to be tuned
