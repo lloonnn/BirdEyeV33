@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import Connection, text
 
 from bird_eye.merge import lock_merges, merge_sighting
+from bird_eye.reviews import queue_review
 from bird_eye.schemas import BatchResult, DetectionRecord
 from bird_eye.settings import Settings
 from bird_eye.storage import CropStorage
@@ -62,5 +63,6 @@ def store_batch(
         accepted += 1
         storage.save(key, crops[record.crop_file])
         merge_sighting(conn, settings, sighting_id)
+        queue_review(conn, settings, sighting_id)
     return BatchResult(accepted=accepted, duplicates=duplicates)
 

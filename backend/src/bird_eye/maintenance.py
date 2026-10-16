@@ -5,7 +5,7 @@ from sqlalchemy import Engine, text
 from bird_eye.storage import CropStorage
 
 # Every application table. Later phases add theirs here.
-APP_TABLES = ("defect_history", "defects", "sightings")
+APP_TABLES = ("defect_history", "reviews", "work_order_defects", "work_orders", "defects", "sightings")
 
 
 def reset_all(engine: Engine, storage: CropStorage) -> tuple[int, int]:

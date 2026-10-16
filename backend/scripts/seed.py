@@ -28,33 +28,83 @@ PLACEHOLDER_CROP = Path(__file__).resolve().parent.parent / "tests" / "data" / "
 DEVICE = "seed-invented"
 
 # (metres north, metres east, type, status, size term, age in days, sightings)
-# Invented values chosen to cover both types, all three urgency bands, and the statuses a defect can
-# have without a work order: detected, verified and rejected. Scheduled, fixed and confirmed defects
-# need a job behind them (decision 84), so Phase 3 seeds them with real work orders.
+# Invented values chosen to cover both types, all three urgency bands and every status except
+# confirmed (Phase 4 reaches it through the scenario). Scheduled and fixed defects hang on real seeded
+# work orders, so work_order_id is non-null exactly when a job covers the defect (decision 84).
 # The location term is computed from config/test_area_points.toml, like a real defect's.
 SEEDS = [
     (120, 80, "pothole", "detected", 0.9, 30, 2),
     (-200, 150, "pothole", "detected", 0.3, 3, 1),
     (300, -250, "crack", "detected", 0.4, 12, 1),
     (-450, -300, "crack", "detected", 0.1, 1, 1),
-    (-750, -50, "pothole", "detected", 0.6, 18, 2),
     (50, 800, "crack", "detected", 0.2, 9, 1),
     (500, 400, "pothole", "verified", 0.8, 25, 3),
     (-600, 200, "crack", "verified", 0.5, 10, 3),
     (250, 600, "pothole", "verified", 0.2, 4, 3),
     (-100, -650, "pothole", "verified", 0.7, 20, 3),
-    (700, -100, "crack", "verified", 0.3, 15, 3),
-    (-300, 700, "pothole", "verified", 0.5, 28, 4),
-    (650, 550, "crack", "verified", 0.1, 22, 3),
+    (700, -100, "crack", "scheduled", 0.3, 15, 3),
+    (-300, 700, "pothole", "scheduled", 0.5, 28, 4),
+    (650, 550, "crack", "fixed", 0.1, 22, 3),
+    (-750, -50, "pothole", "fixed", 0.6, 18, 2),
     (-550, -600, "pothole", "rejected", 0.2, 6, 1),
     (400, -700, "crack", "rejected", 0.1, 2, 1),
 ]
+
+# The statuses a defect passed through to reach its final one, as history entries after "detected".
+CHAIN = {
+    "detected": [],
+    "verified": ["verified"],
+    "scheduled": ["verified", "scheduled"],
+    "fixed": ["verified", "scheduled", "fixed"],
+    "rejected": ["rejected"],
+}
 
 
 def offset(north_m: float, east_m: float) -> tuple[float, float]:
     lat = CENTRE_LAT + north_m / 111_320
     lon = CENTRE_LON + east_m / (111_320 * math.cos(math.radians(CENTRE_LAT)))
     return lat, lon
+
+
+def seed_work_orders(conn, by_status: dict[str, list[int]], scheduled_at: dict[int, object]) -> int:
+    """Real work orders behind the seeded defects: one approved, one done, and two pending drafts."""
+
+    def insert(status: str, crew: str, defect_ids: list[int], created_at, approved_at=None) -> int:
+        work_order_id = conn.execute(
+            text(
+                "INSERT INTO work_orders (status, crew_type, description, created_at, approved_at, invented) "
+                "VALUES (:status, :crew, :description, :created_at, :approved_at, true) RETURNING id"
+            ),
+            {
+                "status": status, "crew": crew, "created_at": created_at, "approved_at": approved_at,
+                "description": f"INVENTED seed job over {len(defect_ids)} defect(s): {crew}.",
+            },
+        ).scalar_one()
+        conn.execute(
+            text("INSERT INTO work_order_defects (work_order_id, defect_id) VALUES (:wo, :d)"),
+            [{"wo": work_order_id, "d": d} for d in defect_ids],
+        )
+        return work_order_id
+
+    created = 0
+    for status, order_status in (("scheduled", "approved"), ("fixed", "done")):
+        ids = by_status.get(status, [])
+        if not ids:
+            continue
+        approved_at = max(scheduled_at[d] for d in ids)
+        work_order_id = insert(order_status, "patching", ids, approved_at - timedelta(hours=1), approved_at)
+        conn.execute(
+            text("UPDATE defects SET work_order_id = :wo WHERE id = ANY(:ids)"), {"wo": work_order_id, "ids": ids}
+        )
+        created += 1
+    # Two drafts over verified defects. A draft does not set work_order_id (decision 84), and one
+    # verified defect is left without a draft.
+    verified = by_status.get("verified", [])
+    for group, crew in ((verified[0:2], "patching"), (verified[2:3], "crack sealing")):
+        if group:
+            insert("pending_approval", crew, group, clock.now())
+            created += 1
+    return created
 
 
 def main() -> int:
@@ -68,6 +118,8 @@ def main() -> int:
         if conn.execute(text("SELECT exists(SELECT 1 FROM defects WHERE invented)")).scalar_one():
             print("INVENTED DATA already present; run scripts/reset_dev_data.py --yes first.", file=sys.stderr)
             return 1
+        by_status: dict[str, list[int]] = {}
+        scheduled_at: dict[int, object] = {}
         for n, (north, east, kind, status, size, age_days, count) in enumerate(SEEDS, 1):
             lat, lon = offset(north, east)
             first_seen = now - timedelta(days=age_days)
@@ -134,12 +186,19 @@ def main() -> int:
                 text("UPDATE defects SET best_sighting_id = :best, last_seen = :last WHERE id = :id"),
                 {"best": best_id, "last": last_seen, "id": defect_id},
             )
-            # History: detected at first sight, then the supervisor's move an hour after the last sighting.
+            # History: detected at first sight, then one entry an hour apart for each later status.
             record_history(conn, defect_id, "detected", first_seen, note="invented seed")
-            if status != "detected":
-                record_history(conn, defect_id, status, last_seen + timedelta(hours=1), note="invented seed")
+            for step, reached in enumerate(CHAIN[status], 1):
+                at = last_seen + timedelta(hours=step)
+                record_history(conn, defect_id, reached, at, note="invented seed")
+                if reached == "scheduled":
+                    scheduled_at[defect_id] = at
+            by_status.setdefault(status, []).append(defect_id)
+
+        n_orders = seed_work_orders(conn, by_status, scheduled_at)
 
     print(f"INVENTED DATA: seeded {len(SEEDS)} defects")
+    print(f"INVENTED DATA: seeded {n_orders} work orders")
     return 0
 
 

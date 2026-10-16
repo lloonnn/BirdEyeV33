@@ -35,6 +35,7 @@ def settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
         database_url=base.test_database_url,
         crop_dir=str(tmp_path_factory.mktemp("crops")),
         location_points_file=str(DATA / "test_points.toml"),
+        dev_endpoints_enabled=True,
     )
 
 
@@ -131,6 +132,23 @@ def move_defect(engine, defect_id: int, *statuses: str) -> None:
     with engine.begin() as conn:
         for status in statuses:
             lifecycle.transition(conn, defect_id, status)
+
+
+def verified_defect(client: TestClient, client_id: str, north_m: float = 0) -> int:
+    """Sight a defect and verify it as a supervisor; returns its id. Spots 50 m apart do not merge."""
+    sight(client, client_id, at(14, 9), north_m=north_m)
+    defect_id = max(d["id"] for d in defects(client))
+    assert client.post(f"/defects/{defect_id}/verify").status_code == 200
+    return defect_id
+
+
+def draft(client: TestClient, *defect_ids: int, crew_type: str = "patching", description: str = "Patch it"):
+    response = client.post(
+        "/dev/work-orders",
+        json={"defect_ids": list(defect_ids), "crew_type": crew_type, "description": description},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
 def count(engine, table: str) -> int:

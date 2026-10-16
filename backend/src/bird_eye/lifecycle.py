@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import Connection, text
 
 from bird_eye import clock
+from bird_eye.errors import ConflictError, NotFoundError
 
 ALLOWED_MOVES: frozenset[tuple[str, str]] = frozenset(
     {
@@ -19,12 +20,12 @@ ALLOWED_MOVES: frozenset[tuple[str, str]] = frozenset(
 )
 
 
-class DefectNotFound(Exception):
+class DefectNotFound(NotFoundError):
     def __init__(self, defect_id: int) -> None:
         super().__init__(f"Defect {defect_id} not found")
 
 
-class IllegalTransition(Exception):
+class IllegalTransition(ConflictError):
     def __init__(self, defect_id: int, current: str, target: str) -> None:
         super().__init__(f"Defect {defect_id} is {current}; it cannot move to {target}")
 

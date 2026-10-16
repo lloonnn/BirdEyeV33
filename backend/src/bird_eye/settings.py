@@ -33,10 +33,15 @@ class Settings(BaseSettings):
     defects_limit_default: int = 500  # starting value, to be tuned
     defects_limit_max: int = 1000  # starting value, to be tuned
 
+    # /dev routes (clean passes, draft work orders) exist only when this is on. Not part of the contract.
+    dev_endpoints_enabled: bool = False
+
     # Merge and passes.
     merge_radius_m: float = 8  # starting value, to be tuned
     pass_gap_minutes: float = 60  # starting value, to be tuned
     passes_to_verify: int = 3  # starting value, to be tuned
+    # Reviews queued per rejected defect per Malaysia calendar day (by captured_at).
+    rejected_spot_reviews_per_day: int = 1  # starting value, to be tuned
 
     # Urgency terms, each from 0 to 1.
     type_term_pothole: float = 1.0  # starting value, to be tuned

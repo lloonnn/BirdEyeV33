@@ -27,7 +27,17 @@ def lock_merges(conn: Connection) -> None:
     conn.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": MERGE_LOCK_KEY})
 
 
-def merge_sighting(conn: Connection, settings: Settings, sighting_id: int) -> None:
+def merge_sighting(
+    conn: Connection,
+    settings: Settings,
+    sighting_id: int,
+    *,
+    as_review_answer: bool = False,
+    related_defect_id: int | None = None,
+) -> None:
+    """Merge one stored sighting. A supervisor's `correct` or `wrong_class` answer on a review passes
+    as_review_answer: the sighting then merges as a save-band record and skips the rejected rule
+    (Choices item 4). related_defect_id links a newly created defect to the rejected one in its history."""
     sighting = conn.execute(
         text("SELECT id, defect_type, band, captured_at FROM sightings WHERE id = :id"), {"id": sighting_id}
     ).mappings().one()
@@ -49,8 +59,8 @@ def merge_sighting(conn: Connection, settings: Settings, sighting_id: int) -> No
     def first(statuses: tuple[str, ...]):
         return next((c for c in candidates if c["status"] in statuses), None)
 
-    if sighting["band"] == "review":
-        # Review-band records wait for a supervisor (Phase 3). Only the rejected-spot link is kept.
+    if sighting["band"] == "review" and not as_review_answer:
+        # Review-band records wait for a supervisor. Only the rejected-spot link is kept.
         if first(OPEN) is None and first(REOPENABLE) is None and (rejected := first(("rejected",))):
             _mark_near_rejected(conn, sighting_id, rejected["id"])
         return
@@ -62,13 +72,15 @@ def merge_sighting(conn: Connection, settings: Settings, sighting_id: int) -> No
         if fixed_at is None or sighting["captured_at"] > fixed_at:
             _reopen(conn, fixed["id"])
         attach(conn, settings, fixed["id"], sighting_id)
-    elif rejected := first(("rejected",)):
+    elif not as_review_answer and (rejected := first(("rejected",))):
         _mark_near_rejected(conn, sighting_id, rejected["id"])
     else:
-        create_defect(conn, settings, sighting_id)
+        create_defect(conn, settings, sighting_id, related_defect_id=related_defect_id)
 
 
-def create_defect(conn: Connection, settings: Settings, sighting_id: int) -> int:
+def create_defect(
+    conn: Connection, settings: Settings, sighting_id: int, *, related_defect_id: int | None = None
+) -> int:
     """A new defect in detected at the sighting's point, cycle 1."""
     row = conn.execute(
         text(
@@ -81,7 +93,9 @@ def create_defect(conn: Connection, settings: Settings, sighting_id: int) -> int
         ),
         {"sighting_id": sighting_id},
     ).mappings().one()
-    lifecycle.record_history(conn, row["id"], "detected", row["first_seen"])
+    lifecycle.record_history(
+        conn, row["id"], "detected", row["first_seen"], related_defect_id=related_defect_id
+    )
     attach(conn, settings, row["id"], sighting_id)
     return row["id"]
 

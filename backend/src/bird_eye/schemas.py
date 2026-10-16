@@ -1,9 +1,9 @@
 """Request and response models, copied from docs/api-contract.md v0."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 DefectType = Literal["pothole", "crack"]
 DefectStatus = Literal["detected", "verified", "scheduled", "fixed", "confirmed", "rejected"]
@@ -113,3 +113,60 @@ class HistoryEntry(BaseModel):
 class DefectDetail(Defect):
     sightings: list[DefectSighting]
     history: list[HistoryEntry]
+
+
+# Reviews
+
+
+class ReviewAnswer(BaseModel):
+    """Body of POST /reviews/{id}. `class` is required for wrong_class and ignored otherwise."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    answer: Literal["correct", "wrong_class", "not_defect"]
+    class_: DefectType | None = Field(default=None, alias="class")
+
+    @model_validator(mode="after")
+    def wrong_class_needs_class(self) -> "ReviewAnswer":
+        if self.answer == "wrong_class" and self.class_ is None:
+            raise ValueError("class is required when answer is wrong_class")
+        return self
+
+
+class Review(BaseModel):
+    id: int
+    status: Literal["pending", "answered"]
+    # The detection record as uploaded, plus crop_url.
+    sighting: dict[str, Any]
+
+
+# Work orders
+
+WorkOrderStatus = Literal["pending_approval", "approved", "rejected", "done"]
+
+
+class WorkOrder(BaseModel):
+    id: int
+    status: WorkOrderStatus
+    crew_type: str
+    description: str
+    defect_ids: list[int]
+    created_at: datetime
+    approved_at: datetime | None
+
+
+class WorkOrderPatch(BaseModel):
+    """Body of PATCH /work-orders/{id}. A field left out, or null, does not change."""
+
+    description: str | None = None
+    crew_type: str | None = None
+    # In the prototype defect_ids may only remove defects (decision 89).
+    defect_ids: list[int] | None = None
+
+
+class DevWorkOrderCreate(BaseModel):
+    """Body of POST /dev/work-orders. Dev only; not part of the contract."""
+
+    defect_ids: list[int] = Field(min_length=1)
+    crew_type: str = Field(min_length=1)
+    description: str = Field(min_length=1)
