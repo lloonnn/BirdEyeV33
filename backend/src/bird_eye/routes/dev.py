@@ -8,9 +8,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import Connection
 
-from bird_eye import work_orders
+from bird_eye import clean_passes, work_orders
+from bird_eye.defects import get_defect
 from bird_eye.db import get_conn
-from bird_eye.schemas import DevWorkOrderCreate, WorkOrder
+from bird_eye.schemas import DevCleanPass, DevCleanPassResult, DevWorkOrderCreate, WorkOrder
 
 router = APIRouter(prefix="/dev")
 
@@ -23,3 +24,14 @@ def create_draft_work_order(
     return work_orders.create_draft(
         conn, request.app.state.settings, body.defect_ids, body.crew_type, body.description
     )
+
+
+@router.post("/defects/{defect_id}/clean-pass", response_model=DevCleanPassResult)
+def record_clean_pass(
+    defect_id: int, body: DevCleanPass, request: Request, conn: Annotated[Connection, Depends(get_conn)]
+) -> DevCleanPassResult:
+    """A later pass that saw the spot and found no defect. Confirms a fixed defect when enough accrue."""
+    settings = request.app.state.settings
+    passes, days = clean_passes.record(conn, settings, defect_id, body.at)
+    defect = get_defect(conn, settings, request.app.state.storage, defect_id)
+    return DevCleanPassResult(defect=defect, clean_passes=passes, clean_days=days)

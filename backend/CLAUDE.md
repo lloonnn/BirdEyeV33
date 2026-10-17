@@ -29,7 +29,8 @@ uv run uvicorn bird_eye.main:app --host 0.0.0.0 --port 8000   # run the server
 uv run pytest                              # run tests; needs the database
 uv run python scripts/seed.py              # load invented dev data
 uv run python scripts/reset_dev_data.py --yes   # empty the database
-uv run python scripts/scenario.py          # full lifecycle via the API (added in Phase 4)
+BIRDEYE_DEV_ENDPOINTS_ENABLED=true uv run uvicorn bird_eye.main:app --port 8000   # server for the scenario
+uv run python scripts/scenario.py          # full lifecycle via the API; run twice (second run reopens)
 ```
 
 ## Rules

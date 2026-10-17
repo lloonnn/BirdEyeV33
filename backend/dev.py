@@ -2,7 +2,7 @@
 run:
 docker compose down -v
 when shutting down your device
- """
+"""
 
 import subprocess
 import sys

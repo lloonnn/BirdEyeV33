@@ -170,3 +170,15 @@ class DevWorkOrderCreate(BaseModel):
     defect_ids: list[int] = Field(min_length=1)
     crew_type: str = Field(min_length=1)
     description: str = Field(min_length=1)
+
+
+class DevCleanPass(BaseModel):
+    """Body of POST /dev/defects/{id}/clean-pass. Dev only; not part of the contract."""
+
+    at: AwareDatetime
+
+
+class DevCleanPassResult(BaseModel):
+    defect: Defect
+    clean_passes: int
+    clean_days: int
