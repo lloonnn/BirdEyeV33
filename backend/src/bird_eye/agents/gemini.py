@@ -14,7 +14,8 @@ class GeminiModel:
     """One conversation. `send` takes the goal or the tool results and returns the model's tool calls."""
 
     def __init__(self, api_key: str, model: str, system: str, declarations: list[dict[str, Any]]) -> None:
-        client = genai.Client(api_key=api_key)
+        # Keep the client: when it is garbage collected the SDK closes its HTTP connection.
+        self._client = genai.Client(api_key=api_key)
         functions = [
             types.FunctionDeclaration(
                 name=d["name"], description=d["description"], parameters_json_schema=d["parameters"]
@@ -27,7 +28,7 @@ class GeminiModel:
             # The loop in bird_eye.agents.loop runs the tools, not the SDK.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
-        self._chat = client.chats.create(model=model, config=config)
+        self._chat = self._client.chats.create(model=model, config=config)
 
     def send(self, message: str | list[ToolResult]) -> list[Call]:
         if isinstance(message, str):

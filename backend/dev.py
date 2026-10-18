@@ -19,7 +19,7 @@ if __name__ == "__main__":
         run("uv run alembic upgrade head")
         run("uv run python scripts/reset_dev_data.py --yes")
         run("uv run python scripts/seed.py")
-        run("uv run uvicorn bird_eye.main:app --host localhost --reload")
+        run("BIRDEYE_DEV_ENDPOINTS_ENABLED=true uv run uvicorn bird_eye.main:app --host localhost --reload")
     except KeyboardInterrupt:
         print("\nStopping development server gracefully. Goodbye!")
         sys.exit(0)
