@@ -34,9 +34,23 @@ type ApiFunction =
   | "answerReview"
 
 // Functions whose backend endpoint works. Used only when the mode is `real`.
-// Empty until the backend serves GET /defects and GET /defects/{id}; add both
-// together, since the panel looks up IDs that the map list returns.
-const live: ReadonlySet<ApiFunction> = new Set<ApiFunction>([])
+// Defects are live; add both reads together, since the panel looks up IDs that
+// the map list returns.
+const live: ReadonlySet<ApiFunction> = new Set<ApiFunction>([
+  "getDefects",
+  "getDefect",
+  "verifyDefect",
+  "rejectDefect",
+  "getWorkOrders",
+  "getWorkOrder",
+  "finishWorkOrder",
+  "approveWorkOrder",
+  "rejectWorkOrder",
+  "editWorkOrder",
+  "getBrief",
+  "getReviews",
+  "answerReview",
+])
 
 const mode = process.env.NEXT_PUBLIC_API_MODE === "real" ? "real" : "mock"
 
@@ -48,6 +62,29 @@ const baseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "")
 // mock banner.
 export function usesMock(fn: ApiFunction): boolean {
   return mode !== "real" || !live.has(fn)
+}
+
+// How much of the API is invented right now: "all" mock, "some" mock (the
+// status pill says "Partly mock data"), or "none" (no label).
+const allFunctions: readonly ApiFunction[] = [
+  "getDefects",
+  "getDefect",
+  "verifyDefect",
+  "rejectDefect",
+  "getWorkOrders",
+  "getWorkOrder",
+  "finishWorkOrder",
+  "approveWorkOrder",
+  "rejectWorkOrder",
+  "editWorkOrder",
+  "getBrief",
+  "getReviews",
+  "answerReview",
+]
+export function mockCoverage(): "all" | "some" | "none" {
+  const mocked = allFunctions.filter(usesMock).length
+  if (mocked === 0) return "none"
+  return mocked === allFunctions.length ? "all" : "some"
 }
 
 type CallOptions = { signal?: AbortSignal }

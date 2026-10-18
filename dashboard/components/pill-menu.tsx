@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 
 import { MockLabel } from "@/components/mock-label"
 import { guarded, lock, requestUnlock, useActionLock } from "@/lib/action-lock"
-import { getReviews, getWorkOrders, inMockMode, resetMockData, usesMock } from "@/lib/api"
+import { getReviews, getWorkOrders, inMockMode, mockCoverage, resetMockData } from "@/lib/api"
 import { useLastUpdated } from "@/lib/last-updated"
 import { navItems } from "@/lib/nav"
 import { setNavCount, useNavCounts } from "@/lib/nav-counts"
@@ -121,7 +121,7 @@ export function PillMenu() {
         >
           {unlocked ? <LockOpenIcon className="size-3.5" aria-hidden /> : <LockIcon className="size-3.5" aria-hidden />}
         </Button>
-        {usesMock("getDefects") && <MockLabel className="rounded-full" />}
+        {mockCoverage() !== "none" && <MockLabel partly={mockCoverage() === "some"} className="rounded-full" />}
         {inMockMode && (
           <Button
             ref={resetButtonRef}
