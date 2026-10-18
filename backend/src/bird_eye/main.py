@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from bird_eye.db import make_engine
 from bird_eye.errors import install_handlers
-from bird_eye.routes import defects, detections, dev, reviews, work_orders
+from bird_eye.routes import brief, defects, detections, dev, reviews, work_orders
 from bird_eye.settings import Settings, get_settings
 from bird_eye.storage import LocalDiskStorage
 
@@ -25,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
         allow_headers=["Content-Type"],
     )
+    app.include_router(brief.router)
     app.include_router(defects.router)
     app.include_router(detections.router)
     app.include_router(reviews.router)

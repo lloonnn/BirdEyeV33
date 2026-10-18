@@ -182,3 +182,21 @@ class DevCleanPassResult(BaseModel):
     defect: Defect
     clean_passes: int
     clean_days: int
+
+
+# GET /brief/latest
+
+
+class Brief(BaseModel):
+    id: int
+    created_at: datetime
+    text: str
+    defect_ids: list[int]
+
+
+class DevAgentRunResult(BaseModel):
+    """Result of POST /dev/agents/*. Dev only; not part of the contract."""
+
+    run_id: int
+    outcome: Literal["ok", "step_limit", "error"]
+    error: str | None

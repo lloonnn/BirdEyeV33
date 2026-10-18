@@ -36,6 +36,8 @@ def settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
         crop_dir=str(tmp_path_factory.mktemp("crops")),
         location_points_file=str(DATA / "test_points.toml"),
         dev_endpoints_enabled=True,
+        gemini_api_key=None,  # tests never reach the real Gemini, whatever backend/.env holds
+        gemini_model=None,
     )
 
 

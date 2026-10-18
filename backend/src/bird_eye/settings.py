@@ -5,11 +5,12 @@ Every threshold is a config value (decision 26), never hard-coded in the logic.
 
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="BIRDEYE_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="BIRDEYE_", env_file=".env", extra="ignore", populate_by_name=True)
 
     database_url: str = "postgresql+psycopg://birdeye:birdeye@localhost:5432/birdeye"
     test_database_url: str = "postgresql+psycopg://birdeye:birdeye@localhost:5432/birdeye_test"
@@ -35,6 +36,13 @@ class Settings(BaseSettings):
 
     # /dev routes (clean passes, draft work orders) exist only when this is on. Not part of the contract.
     dev_endpoints_enabled: bool = False
+
+    # Agents (Phase 5). The key and model name live in backend/.env, never in git.
+    gemini_api_key: str | None = Field(default=None, validation_alias=AliasChoices("GEMINI_API_KEY", "BIRDEYE_GEMINI_API_KEY"))
+    gemini_model: str | None = Field(default=None, validation_alias=AliasChoices("GEMINI_MODEL", "BIRDEYE_GEMINI_MODEL"))
+    agent_max_steps: int = 8  # starting value, to be tuned
+    agent_group_radius_m: float = 100  # starting value, to be tuned
+    agent_defects_max: int = 50  # starting value, to be tuned
 
     # Merge and passes.
     merge_radius_m: float = 8  # starting value, to be tuned

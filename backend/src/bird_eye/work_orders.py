@@ -54,8 +54,9 @@ def create_draft(
     defect_ids: Sequence[int],
     crew_type: str,
     description: str,
+    agent_run_id: int | None = None,
 ) -> WorkOrder:
-    """A work order in pending_approval over verified defects. Used by /dev until the agent exists."""
+    """A work order in pending_approval over verified defects. Used by /dev and by the work order agent."""
     ids = sorted(set(defect_ids))
     found = dict(
         conn.execute(text("SELECT id, status FROM defects WHERE id = ANY(:ids)"), {"ids": ids}).all()
@@ -68,10 +69,10 @@ def create_draft(
         raise invalid(("body", "defect_ids"), f"every defect must be verified: {', '.join(not_verified)}")
     work_order_id = conn.execute(
         text(
-            "INSERT INTO work_orders (crew_type, description, created_at) "
-            "VALUES (:crew_type, :description, :now) RETURNING id"
+            "INSERT INTO work_orders (crew_type, description, created_at, agent_run_id) "
+            "VALUES (:crew_type, :description, :now, :run) RETURNING id"
         ),
-        {"crew_type": crew_type, "description": description, "now": clock.now()},
+        {"crew_type": crew_type, "description": description, "now": clock.now(), "run": agent_run_id},
     ).scalar_one()
     conn.execute(
         text("INSERT INTO work_order_defects (work_order_id, defect_id) VALUES (:wo, :d)"),

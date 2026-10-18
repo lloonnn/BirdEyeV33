@@ -30,6 +30,7 @@ uv run pytest                              # run tests; needs the database
 uv run python scripts/seed.py              # load invented dev data
 uv run python scripts/reset_dev_data.py --yes   # empty the database
 BIRDEYE_DEV_ENDPOINTS_ENABLED=true uv run uvicorn bird_eye.main:app --port 8000   # server for the scenario
+uv run python -m bird_eye.agents work-order   # one agent run; also: brief. Needs GEMINI_API_KEY and GEMINI_MODEL in .env
 uv run python scripts/scenario.py          # full lifecycle via the API; run twice (second run reopens)
 ```
 
