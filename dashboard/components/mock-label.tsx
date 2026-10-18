@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils"
 
 // Small corner label on any page that shows mock data (Rule 5).
-export function MockLabel({ className }: { className?: string }) {
+export function MockLabel({ className, partly = false }: { className?: string; partly?: boolean }) {
   return (
     <div
       role="note"
@@ -10,7 +10,7 @@ export function MockLabel({ className }: { className?: string }) {
         className
       )}
     >
-      Mock data, invented
+      {partly ? "Partly mock data" : "Mock data, invented"}
     </div>
   )
 }
