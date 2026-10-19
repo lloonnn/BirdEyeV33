@@ -41,6 +41,13 @@ export function typeName(type: string): string {
   return typeLabels[type as DefectType] ?? type.charAt(0).toUpperCase() + type.slice(1)
 }
 
+// The Overview's three stages, in plain words under each number.
+export const stageLabel = {
+  detected: "to check",
+  verified: "waiting for job",
+  scheduled: "in a job",
+} as const
+
 export const statusLabel: Record<DefectStatus, string> = {
   detected: "Detected",
   verified: "Verified",

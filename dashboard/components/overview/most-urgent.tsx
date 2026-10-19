@@ -23,7 +23,7 @@ function seenFor(firstSeen: string, now: number): string {
   return days === 1 ? "seen 1 day" : `seen ${days} days`
 }
 
-// Card 2: the most urgent detected and verified defects in the pilot area.
+// Card 2: the most urgent defects of the selected stage in the pilot area.
 export function MostUrgent({ defects, loading, selectedId, now, onSelect, className }: Props) {
   return (
     <section aria-labelledby="most-urgent-title" className={cn("panel p-2", className)}>
@@ -39,7 +39,7 @@ export function MostUrgent({ defects, loading, selectedId, now, onSelect, classN
       ) : !defects ? (
         <p className="px-2 pb-2 text-xs text-muted-foreground">No data loaded.</p>
       ) : defects.length === 0 ? (
-        <p className="px-2 pb-2 text-xs text-muted-foreground">Nothing waiting.</p>
+        <p className="px-2 pb-2 text-xs text-muted-foreground">Nothing here.</p>
       ) : (
         <ol>
           {defects.map((d) => (
