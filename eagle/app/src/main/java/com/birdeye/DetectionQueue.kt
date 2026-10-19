@@ -35,11 +35,12 @@ class DetectionQueue(context: Context) : QueueStore {
                     lon = it.lon,
                     confidence = it.confidence,
                     uploaded = it.uploadedAtMs != null,
+                    band = Band.entries.first { b -> b.wire == it.band },
                 )
             }
             val new = DupCandidate(
                 record.clientId, record.defectType, capturedAtMs,
-                record.defectPoint.lat, record.defectPoint.lon, record.confidence, uploaded = false,
+                record.defectPoint.lat, record.defectPoint.lon, record.confidence, uploaded = false, band = record.band,
             )
             val decision = DuplicateFilter.decide(new, recent, config.duplicateDistanceM, config.duplicateTimeS)
             if (decision is DupDecision.Replace) {
@@ -54,7 +55,7 @@ class DetectionQueue(context: Context) : QueueStore {
                 dao.insertLog(
                     DetectionLogEntry(
                         record.clientId, record.defectType.wire, capturedAtMs,
-                        record.defectPoint.lat, record.defectPoint.lon, record.confidence, uploadedAtMs = null,
+                        record.defectPoint.lat, record.defectPoint.lon, record.confidence, uploadedAtMs = null, band = record.band.wire,
                     ),
                 )
             }
@@ -91,6 +92,8 @@ class DetectionQueue(context: Context) : QueueStore {
     fun pendingCount() = dao.pendingCount()
 
     fun foundSince(sinceMs: Long) = dao.foundSince(sinceMs)
+
+    fun reviewSince(sinceMs: Long) = dao.reviewSince(sinceMs)
 
     fun uploadedSince(sinceMs: Long) = dao.uploadedSince(sinceMs)
 }

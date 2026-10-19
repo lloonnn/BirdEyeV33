@@ -76,3 +76,6 @@ fun topScore(output: FloatArray, n: Int): Pair<DefectType, Float> {
     }
     return type to best
 }
+
+/** Save band at [saveMin] or above; below it (down to band_review_min, already applied by [decode]) is review. */
+fun bandFor(score: Float, saveMin: Double): Band = if (score >= saveMin) Band.Save else Band.Review

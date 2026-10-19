@@ -89,6 +89,7 @@ fun BirdEyeApp(shift: ShiftViewModel) {
     val recordsWaiting by remember { shift.queue.pendingCount() }.collectAsState(0)
     val rejected by remember { shift.queue.rejectedCount() }.collectAsState(0)
     val foundThisShift by remember(shift.shiftStartWallMs) { shift.queue.foundSince(shift.shiftStartWallMs) }.collectAsState(0)
+    val reviewThisShift by remember(shift.shiftStartWallMs) { shift.queue.reviewSince(shift.shiftStartWallMs) }.collectAsState(0)
     val uploadedThisShift by remember(shift.shiftStartWallMs) { shift.queue.uploadedSince(shift.shiftStartWallMs) }.collectAsState(0)
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -133,6 +134,7 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                 ScanningScreen(
                     cooling = shift.cooling,
                     defectsToday = foundThisShift,
+                    reviewCount = reviewThisShift,
                     recordsWaiting = recordsWaiting,
                     uploadsCompleted = uploadedThisShift,
                     rejected = rejected,

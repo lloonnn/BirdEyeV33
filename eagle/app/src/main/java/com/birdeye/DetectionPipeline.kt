@@ -30,8 +30,8 @@ data class PipelineStats(val backend: String? = null, val inferenceMs: Double = 
 
 /**
  * Frames from a [FrameSource] to queued records: sample, detect, crop, locate, queue. Video is never stored: a frame
- * lives only inside [process] and is dropped at the end. Detection runs on the source's own thread; the
- * save band goes to the queue through the duplicate filter, the review band is dropped for now.
+ * lives only inside [process] and is dropped at the end. Detection runs on the source's own thread;
+ * both bands go to the queue through the duplicate filter, which treats each band separately.
  */
 class DetectionPipeline(
     context: Context,
@@ -88,7 +88,7 @@ class DetectionPipeline(
         for ((index, d) in found.withIndex()) {
             // Only the best detection of the frame sets the debug reason.
             fun why(reason: String) { if (index == 0) _stats.value = _stats.value.copy(reason = reason) }
-            if (d.score < config.bandSaveMin) { why("review band"); continue } // dropped in this phase
+            val band = bandFor(d.score, config.bandSaveMin)
             if (fix == null || !fixFresh(fix)) {
                 Log.d("BirdEye", "Detection dropped: no fresh GPS fix")
                 why("no GPS fix")
@@ -109,7 +109,7 @@ class DetectionPipeline(
                 capturedAt = capturedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
                 defectType = d.type,
                 confidence = d.score.toDouble(),
-                band = Band.Save,
+                band = band,
                 bbox = d.bbox.toList(),
                 vehicle = Vehicle(
                     lat = fix.latitude,
@@ -127,7 +127,7 @@ class DetectionPipeline(
             scope.launch {
                 val decision = queue.add(record, capturedAtMs, jpeg)
                 Log.i("BirdEye", "Detection${if (BuildConfig.REPLAY) " [REPLAY, test footage]" else ""} ${record.defectType.wire} %.2f ${record.clientId.take(8)}: $decision".format(record.confidence))
-                why(if (decision == DupDecision.Drop) "duplicate" else "saved")
+                why(if (decision == DupDecision.Drop) "duplicate" else if (band == Band.Review) "saved (review band)" else "saved")
             }
         }
     }

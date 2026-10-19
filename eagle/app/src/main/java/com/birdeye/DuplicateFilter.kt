@@ -16,6 +16,8 @@ data class DupCandidate(
     val confidence: Double,
     /** True once the record has left the phone; it can no longer be replaced. */
     val uploaded: Boolean,
+    /** Save and review records are filtered separately: a review record never replaces or drops a save one. */
+    val band: Band = Band.Save,
 )
 
 sealed interface DupDecision {
@@ -39,6 +41,7 @@ object DuplicateFilter {
     fun decide(new: DupCandidate, recent: List<DupCandidate>, distanceM: Double, timeS: Double): DupDecision {
         val matches = recent.filter {
             it.clientId != new.clientId &&
+                it.band == new.band &&
                 it.defectType == new.defectType &&
                 kotlin.math.abs(it.capturedAtMs - new.capturedAtMs) <= timeS * 1000 &&
                 distanceMetres(it.lat, it.lon, new.lat, new.lon) <= distanceM
