@@ -40,6 +40,7 @@ fun ScanningScreen(
     debugStats: String,
     debugReason: String,
     replayTime: String?,
+    replayStatus: String?,
     onEndShift: () -> Unit,
     onToggleCooling: () -> Unit,
     canAddFake: Boolean,
@@ -50,6 +51,10 @@ fun ScanningScreen(
 ) {
     Box(Modifier.fillMaxSize()) {
         preview(Modifier.fillMaxSize())
+        // Replay preparation can take a while; say so in the middle of the picture.
+        if (replayStatus?.startsWith("Preparing") == true) {
+            Text(replayStatus, Modifier.align(Alignment.Center), style = MaterialTheme.typography.headlineMedium)
+        }
         Column(
             Modifier.fillMaxSize().safeDrawingPadding().padding(PatrolSpacing.md),
             verticalArrangement = Arrangement.SpaceBetween,
@@ -60,22 +65,22 @@ fun ScanningScreen(
                 // A translucent colour has no matching content colour, so set it, or text falls back to black.
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(PatrolSpacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.md),
-                ) {
+                Column(Modifier.fillMaxWidth().padding(PatrolSpacing.md), verticalArrangement = Arrangement.spacedBy(PatrolSpacing.sm)) {
                     StateLabel(
                         if (cooling) R.string.cooling else R.string.scanning,
-                        Modifier.weight(1f),
                         style = MaterialTheme.typography.headlineMedium,
                         color = if (cooling) BirdEye.status.medium else BirdEye.status.done,
                     )
-                    if (replayTime != null) {
-                        Text(replayTime, style = MaterialTheme.typography.titleMedium)
-                        ReplayLabel()
+                    // Second row, so the state word never wraps.
+                    if (replayTime != null || showMock) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.md)) {
+                            if (replayTime != null) {
+                                ReplayLabel()
+                                Text(replayTime, style = MaterialTheme.typography.titleMedium)
+                            }
+                            if (showMock) MockLabel()
+                        }
                     }
-                    if (showMock) MockLabel()
                 }
             }
             Surface(
@@ -105,6 +110,7 @@ fun ScanningScreen(
                         Text(stringResource(R.string.debug_rejected, rejected), style = MaterialTheme.typography.bodyLarge)
                         Text(debugStats, style = MaterialTheme.typography.bodyLarge)
                         Text(debugReason, style = MaterialTheme.typography.bodyLarge)
+                        replayStatus?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
                         DebugButton(stringResource(R.string.debug_add_fake), onAddFake, enabled = canAddFake)
                         Row {
                             DebugButton(
@@ -142,7 +148,7 @@ private fun DebugButton(label: String, onClick: () -> Unit, modifier: Modifier =
 internal fun ScanningPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = false, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true, debugStats = "GPU 42 ms, 3.0 fps", debugReason = "top pothole 0.62: review band", replayTime = null,
+            cooling = false, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true, debugStats = "GPU 42 ms, 3.0 fps", debugReason = "top pothole 0.62: review band", replayTime = null, replayStatus = null,
             onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }
@@ -153,7 +159,7 @@ internal fun ScanningPreview() {
 internal fun CoolingPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = true, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = null, noGpsSeconds = 30, showDebug = false, debugStats = "", debugReason = "", replayTime = null,
+            cooling = true, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = null, noGpsSeconds = 30, showDebug = false, debugStats = "", debugReason = "", replayTime = null, replayStatus = null,
             onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }

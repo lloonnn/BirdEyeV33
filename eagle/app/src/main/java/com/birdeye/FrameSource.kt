@@ -11,12 +11,18 @@ import java.util.concurrent.Executors
 
 /**
  * Where frames come from. The pipeline depends only on this. A source delivers upright frames at
- * frame_rate, one at a time, on its own thread, and recycles each bitmap after the sink returns,
- * so the sink must not keep it.
+ * frame_rate, one at a time, on its own thread, and recycles each camera bitmap after the sink returns,
+ * so the sink must not keep it. (The replay source leaves its bitmaps to the garbage collector.)
  */
 interface FrameSource {
     /** Position in the replay video in ms; null for the camera. */
     val videoTimeMs: StateFlow<Long?>
+
+    /** One line about the source for the screen (replay progress and decode speed); null when there is none. */
+    val status: StateFlow<String?>
+
+    /** The latest frame, for drawing in replay. Null for the camera, which has its own preview. */
+    val displayFrame: StateFlow<Bitmap?>
 
     fun start(sink: (Bitmap) -> Unit)
 
@@ -29,6 +35,8 @@ interface FrameSource {
  */
 class CameraFrameSource(private val config: ConfigV0) : FrameSource {
     override val videoTimeMs: StateFlow<Long?> = MutableStateFlow(null)
+    override val status: StateFlow<String?> = MutableStateFlow(null)
+    override val displayFrame: StateFlow<Bitmap?> = MutableStateFlow(null)
 
     private val executor = Executors.newSingleThreadExecutor { Thread(it, "birdeye-detect") }
 

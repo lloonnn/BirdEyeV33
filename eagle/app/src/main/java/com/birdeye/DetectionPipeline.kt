@@ -24,6 +24,8 @@ import kotlin.math.roundToInt
 data class PipelineStats(val backend: String? = null, val inferenceMs: Double = 0.0, val fps: Double = 0.0, val error: String? = null,
     /** Debug: top raw score of the last frame, and why the top detection was or was not saved. */
     val top: Pair<DefectType, Float>? = null, val reason: String? = null,
+    /** Detections of the last frame, boxes normalised against a frame of frameW x frameH, for the debug overlay. */
+    val boxes: List<Detection> = emptyList(), val frameW: Int = 0, val frameH: Int = 0,
 )
 
 /**
@@ -80,7 +82,7 @@ class DetectionPipeline(
         doneAtMs.addLast(now)
         while (doneAtMs.first() < now - 3000) doneAtMs.removeFirst()
         val fps = if (doneAtMs.size > 1) (doneAtMs.size - 1) * 1000.0 / (now - doneAtMs.first()) else 0.0
-        _stats.value = PipelineStats(det.backend, avgInferenceMs, fps, top = det.lastTop,
+        _stats.value = PipelineStats(det.backend, avgInferenceMs, fps, top = det.lastTop, boxes = found, frameW = frame.width, frameH = frame.height,
             reason = if (found.isEmpty()) "below review band" else null)
 
         for ((index, d) in found.withIndex()) {
