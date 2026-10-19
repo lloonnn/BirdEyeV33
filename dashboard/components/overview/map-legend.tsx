@@ -2,13 +2,11 @@ import type { PinTone } from "@/components/map/leaflet-map"
 import { Dot, toneText } from "@/components/overview/badges"
 import { cn } from "@/lib/utils"
 
-// Card 3: what each pin colour means. Colour is urgency, plus grey for
-// scheduled (brief section 3).
+// Card 3: what each pin colour means. Colour is urgency only.
 const lines: { tone: PinTone; label: string }[] = [
   { tone: "high", label: "Fix first" },
   { tone: "medium", label: "Soon" },
   { tone: "low", label: "Low" },
-  { tone: "neutral", label: "Scheduled" },
 ]
 
 export function MapLegend({ note, className }: { note?: React.ReactNode; className?: string }) {

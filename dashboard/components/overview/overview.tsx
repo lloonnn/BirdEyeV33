@@ -12,25 +12,20 @@ import { toPin } from "@/components/overview/defect-pins"
 import { MapLegend } from "@/components/overview/map-legend"
 import { MostUrgent } from "@/components/overview/most-urgent"
 import { Stepper } from "@/components/overview/stepper"
-import { areaStats, overviewStatuses, unscheduledStatuses } from "@/components/overview/summary"
+import { type Stage, defaultStage, isStage } from "@/components/overview/summary"
 import { SummaryCard } from "@/components/overview/summary-card"
-import { useDefects } from "@/components/overview/use-defects"
+import { type DefectsState, useDefects } from "@/components/overview/use-defects"
 import { getDefect } from "@/lib/api"
 import { ApiError, type Bbox, type Defect, type DefectsQuery } from "@/lib/api-types"
 import { areaBounds, defectsDefaultLimit, defectsReloadDebounceMs, fixFirstCount } from "@/lib/config"
 import { formatClock } from "@/lib/time"
 
-// The whole pilot area: every defect the Overview shows (the open count, the
-// first fit and the job dialog's names), the ones still needing a decision
-// (the fix first count), and the top of those by urgency (Most urgent).
-const openQuery: DefectsQuery = { bbox: areaBounds, status: overviewStatuses }
-const unscheduledQuery: DefectsQuery = { bbox: areaBounds, status: unscheduledStatuses }
-const urgentQuery: DefectsQuery = {
-  bbox: areaBounds,
-  status: unscheduledStatuses,
-  sort: "urgency_desc",
-  limit: fixFirstCount,
-}
+// One query per stage over the whole pilot area, most urgent first. Its length
+// is the stage's count, and its first rows are the Most urgent list.
+const stageQuery = (status: Stage): DefectsQuery => ({ bbox: areaBounds, status: [status], sort: "urgency_desc" })
+const detectedQuery = stageQuery("detected")
+const verifiedQuery = stageQuery("verified")
+const scheduledQuery = stageQuery("scheduled")
 
 function failureText(error: unknown, lastAt: Date | null): string {
   const head =
@@ -46,6 +41,7 @@ function failureText(error: unknown, lastAt: Date | null): string {
 export function Overview() {
   const [bbox, setBbox] = useState<Bbox | null>(null)
   const [selected, setSelected] = useState<Defect | null>(null)
+  const [stage, setStage] = useState<Stage>(defaultStage)
   const [focus, setFocus] = useState<MapFocus | null>(null)
   const [zoom, setZoom] = useState<MapZoom | null>(null)
   // Bumped after every action, so all data reloads from the API.
@@ -60,6 +56,9 @@ export function Overview() {
     const controller = new AbortController()
     getDefect(linkedId, { signal: controller.signal })
       .then((defect) => {
+        // Open the stage the defect belongs to; a fixed, confirmed or
+        // rejected one has no stage, so the current one stays.
+        if (isStage(defect.status)) setStage(defect.status)
         setSelected(defect)
         setFocus({ lat: defect.lat, lon: defect.lon, seq: Date.now() })
         setLinkError(null)
@@ -83,30 +82,39 @@ export function Overview() {
 
   useEffect(() => () => clearTimeout(debounce.current), [])
 
-  // Detected, verified and scheduled only; keep the last data on screen while
-  // a new area loads or the server is down.
-  const view = useDefects(bbox ? { bbox, status: overviewStatuses } : null, refreshKey)
-  const area = useDefects(openQuery, refreshKey)
-  const unscheduled = useDefects(unscheduledQuery, refreshKey)
-  const mostUrgent = useDefects(urgentQuery, refreshKey)
+  // Keep the last data on screen while a new area loads or the server is down.
+  const view = useDefects(bbox ? { bbox, status: [stage] } : null, refreshKey)
+  const detected = useDefects(detectedQuery, refreshKey)
+  const verified = useDefects(verifiedQuery, refreshKey)
+  const scheduled = useDefects(scheduledQuery, refreshKey)
+  const byStage: Record<Stage, DefectsState> = { detected, verified, scheduled }
+  const current = byStage[stage]
 
-  const shown = useMemo(() => view.defects ?? [], [view.defects])
+  // Only the selected stage's pins. The filter also covers the moment after a
+  // stage change, while the map still holds the last response.
+  const shown = useMemo(() => (view.defects ?? []).filter((d) => d.status === stage), [view.defects, stage])
   const pins = useMemo(() => shown.map(toPin), [shown])
-  const urgent = mostUrgent.defects
-  const stats = useMemo(
-    () => (area.defects && unscheduled.defects ? areaStats(area.defects, unscheduled.defects) : null),
-    [area.defects, unscheduled.defects]
+  const urgent = useMemo(() => current.defects?.slice(0, fixFirstCount) ?? null, [current.defects])
+  const counts: Record<Stage, number | null> = {
+    detected: detected.defects?.length ?? null,
+    verified: verified.defects?.length ?? null,
+    scheduled: scheduled.defects?.length ?? null,
+  }
+  // Names for the finish-job dialog, whatever stage is open.
+  const known = useMemo(
+    () => [...(detected.defects ?? []), ...(verified.defects ?? []), ...(scheduled.defects ?? [])],
+    [detected.defects, verified.defects, scheduled.defects]
   )
 
-  // First load: fit the map to every defect the Overview shows, kept clear of
+  // First load: fit the map to every defect of the first stage, kept clear of
   // the left column (16 + 320 + 16 px), the top bar (76), the right panel's
   // space (16 + 352 + 16) and the stepper (16 + 44 + 16). Skipped when a
   // ?defect= link asks for one defect.
   const fit = useMemo<MapFit | null>(() => {
-    if (linkedId || !area.defects) return null
-    const points = area.defects.map((d): [number, number] => [d.lat, d.lon])
+    if (linkedId || !current.defects) return null
+    const points = current.defects.map((d): [number, number] => [d.lat, d.lon])
     return { points, padding: [76, 384, 76, 352] }
-  }, [area.defects, linkedId])
+  }, [current.defects, linkedId])
 
   const onPinClick = useCallback(
     (id: number) => setSelected(shown.find((d) => d.id === id) ?? null),
@@ -117,6 +125,11 @@ export function Overview() {
     setFocus({ lat: defect.lat, lon: defect.lon, seq: Date.now() })
   }, [])
   const closePanel = useCallback(() => setSelected(null), [])
+  // A new stage clears the selection and closes the panel.
+  const onStage = useCallback((next: Stage) => {
+    setStage(next)
+    setSelected(null)
+  }, [])
   const onStep = useCallback(
     (index: number) => {
       const defect = urgent?.[index]
@@ -128,8 +141,8 @@ export function Overview() {
   const stepIndex = selected && urgent ? urgent.findIndex((d) => d.id === selected.id) : -1
   const reloadAll = useCallback(() => setRefreshKey((k) => k + 1), [])
 
-  const error = view.error ?? area.error ?? unscheduled.error ?? mostUrgent.error
-  const lastAt = [view.at, area.at, unscheduled.at, mostUrgent.at].reduce<Date | null>(
+  const error = view.error ?? detected.error ?? verified.error ?? scheduled.error
+  const lastAt = [view.at, detected.at, verified.at, scheduled.at].reduce<Date | null>(
     (latest, at) => (at && (!latest || at > latest) ? at : latest),
     null
   )
@@ -178,10 +191,10 @@ export function Overview() {
       {/* Scrolls only if an open brief makes the column taller than the screen. */}
       <div className="absolute top-19 left-4 z-10 flex max-h-[calc(100vh-5.75rem)] w-80 flex-col gap-4 overflow-y-auto rounded-[16px] [scrollbar-width:none]">
         <BriefCard refreshKey={refreshKey} />
-        <SummaryCard stats={stats} loading={area.loading || unscheduled.loading} />
+        <SummaryCard stage={stage} counts={counts} onStage={onStage} />
         <MostUrgent
           defects={urgent}
-          loading={mostUrgent.loading}
+          loading={current.loading}
           selectedId={selected?.id ?? null}
           now={now}
           onSelect={onListSelect}
@@ -205,7 +218,7 @@ export function Overview() {
           now={lastAt ? now : new Date(selected.last_seen).getTime()}
           refreshKey={refreshKey}
           onChanged={reloadAll}
-          known={area.defects ?? []}
+          known={known}
           onClose={closePanel}
           className="absolute top-19 right-4 z-20 max-h-[calc(100vh-9.5rem)] w-88"
         />

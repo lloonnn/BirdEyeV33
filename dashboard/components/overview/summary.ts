@@ -1,20 +1,19 @@
-import type { Defect, DefectStatus } from "@/lib/api-types"
+import type { DefectStatus } from "@/lib/api-types"
 
-// Statuses the Overview shows, asked of the server with `status=`. Fixed,
-// confirmed and rejected never appear: nothing is left to do for them.
-// Scheduled stays so Mark fixed can reach it.
-export const overviewStatuses: DefectStatus[] = ["detected", "verified", "scheduled"]
+// The three stages the Overview can show, one at a time. Fixed, confirmed and
+// rejected never appear: nothing is left to do for them. In order of the
+// workflow: check it, wait for a job, be in a job.
+export type Stage = Extract<DefectStatus, "detected" | "verified" | "scheduled">
 
-// Needs a decision: open and not yet in an approved job.
-export const unscheduledStatuses: DefectStatus[] = ["detected", "verified"]
+export const stages: Stage[] = ["detected", "verified", "scheduled"]
 
-export type AreaStats = { open: number; fixFirst: number }
+export const defaultStage: Stage = "detected"
 
-// Card 1: open counts detected, verified and scheduled; fix first counts the
-// detected and verified ones in the high band, the same set as Most urgent.
-export function areaStats(open: Defect[], unscheduled: Defect[]): AreaStats {
-  return {
-    open: open.length,
-    fixFirst: unscheduled.filter((d) => d.urgency_band === "high").length,
-  }
+export function isStage(status: DefectStatus): status is Stage {
+  return (stages as DefectStatus[]).includes(status)
+}
+
+// A response that hit the limit may have more behind it, so it shows "500+".
+export function countText(count: number, limit: number): string {
+  return count >= limit ? `${limit}+` : String(count)
 }
