@@ -29,6 +29,9 @@ Each phone's own values go in `eagle/local.properties`, which is not committed. 
 
 ```properties
 birdeye.cameraHeightM=1.2   # camera height above the road in metres, measured in the mount
+birdeye.api=real            # mock (default) or real
+birdeye.baseUrl=http://192.168.1.10:8000   # required when api=real; cleartext works in debug builds only
+birdeye.deviceId=car-01     # optional, default eagle-dev
 ```
 
 If `birdeye.cameraHeightM` is missing, the app uses 1.0 m, shows "Height not set" as a warning on Start shift, and logs how to set it. Reason: the distance-ahead formula needs the real height, and each vehicle differs.

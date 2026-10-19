@@ -81,6 +81,7 @@ fun BirdEyeApp(shift: ShiftViewModel) {
         }
     }
     val preview: @Composable (Modifier) -> Unit = { CameraPreview(it) }
+    val stats by shift.pipeline.stats.collectAsState()
 
     // Counts from the Room queue and its log.
     val todayStartMs = remember(now) { LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
@@ -136,13 +137,15 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                     noGpsSeconds = shift.settings.endShiftNoFixS.toInt(),
                     // Debug builds only. The demo uses a release build, so the toggle is hidden there.
                     showDebug = BuildConfig.DEBUG,
+                    debugReason = stats.top?.let { "top ${it.first.wire} %.2f: ${stats.reason ?: "..."}".format(it.second) } ?: "no frame yet",
+                    debugStats = stats.error ?: "${stats.backend ?: "model loading"}: %.0f ms, %.1f fps".format(stats.inferenceMs, stats.fps),
                     onEndShift = { shift.endShift() },
                     onToggleCooling = { shift.cooling = !shift.cooling },
                     canAddFake = shift.lastFix != null,
                     onAddFake = { shift.addFakeDetection() },
                     mockFails = shift.mockFails,
                     onToggleMockFails = { shift.toggleMockFails() },
-                    preview = preview,
+                    preview = { CameraPreview(it, pipeline = shift.pipeline) },
                 )
             }
 

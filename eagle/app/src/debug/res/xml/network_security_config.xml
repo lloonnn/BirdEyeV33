@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only. Reason: the laptop backend has no trusted certificate, and its address differs per
+     phone (birdeye.baseUrl). Release builds have no such file, so cleartext stays blocked there. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

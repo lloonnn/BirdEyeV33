@@ -116,29 +116,33 @@ fun rememberCharging(): Boolean {
 @Composable
 fun rememberCameraFov(): CameraFov? {
     val context = LocalContext.current
-    return remember {
-        try {
-            val manager = context.getSystemService(CameraManager::class.java)
-            manager.cameraIdList.asSequence()
-                .map { manager.getCameraCharacteristics(it) }
-                .firstOrNull { it.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK }
-                ?.let { chars ->
-                    val size = chars.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE) ?: return@let null
-                    val focal = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)?.firstOrNull()
-                        ?: return@let null
-                    fun fov(side: Float) = (2 * atan(side / (2 * focal).toDouble())).toDeg()
-                    CameraFov(fov(max(size.width, size.height)), fov(minOf(size.width, size.height)))
-                }
-        } catch (e: Exception) {
-            Log.w("BirdEye", "No camera field of view", e)
-            null
-        }
-    }
+    return remember { backCameraFov(context) }
 }
 
-/** CameraX Preview only, bound to the activity's lifecycle. No foreground service (plan, tier 1). */
+/** Field of view of the first back camera, from its sensor size and focal length; null if unknown. */
+fun backCameraFov(context: Context): CameraFov? = try {
+    val manager = context.getSystemService(CameraManager::class.java)
+    manager.cameraIdList.asSequence()
+        .map { manager.getCameraCharacteristics(it) }
+        .firstOrNull { it.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK }
+        ?.let { chars ->
+            val size = chars.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE) ?: return@let null
+            val focal = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)?.firstOrNull()
+                ?: return@let null
+            fun fov(side: Float) = (2 * atan(side / (2 * focal).toDouble())).toDeg()
+            CameraFov(fov(max(size.width, size.height)), fov(minOf(size.width, size.height)))
+        }
+} catch (e: Exception) {
+    Log.w("BirdEye", "No camera field of view", e)
+    null
+}
+
+/**
+ * CameraX Preview, plus frame analysis when a [pipeline] is given. Bound to the activity's lifecycle.
+ * No foreground service (plan, tier 1).
+ */
 @Composable
-fun CameraPreview(modifier: Modifier = Modifier) {
+fun CameraPreview(modifier: Modifier = Modifier, pipeline: DetectionPipeline? = null) {
     if (LocalInspectionMode.current) {
         Box(modifier.background(Color(0xFF1F2937)))
         return
@@ -151,20 +155,25 @@ fun CameraPreview(modifier: Modifier = Modifier) {
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
     }
-    DisposableEffect(owner) {
+    DisposableEffect(owner, pipeline) {
         val useCase = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
+        val analysis = pipeline?.analysisUseCase()
         val future = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
         future.addListener({
             try {
                 provider = future.get().also {
-                    it.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, useCase)
+                    val cases = listOfNotNull(useCase, analysis)
+                    it.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, *cases.toTypedArray())
                 }
             } catch (e: Exception) {
                 Log.e("BirdEye", "Camera bind failed", e)
             }
         }, ContextCompat.getMainExecutor(context))
-        onDispose { provider?.unbind(useCase) }
+        onDispose {
+            analysis?.clearAnalyzer()
+            provider?.unbind(*listOfNotNull(useCase, analysis).toTypedArray())
+        }
     }
     AndroidView(factory = { previewView }, modifier = modifier)
 }

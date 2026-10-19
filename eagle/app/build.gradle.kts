@@ -20,11 +20,13 @@ val cameraHeightSetting = localProperties.getProperty("birdeye.cameraHeightM")?.
     ?.takeIf { it > 0.0 }
 
 // Which backend the app talks to (key birdeye.api): "mock" (default) or "real". Only Api.kt reads the
-// resulting BuildConfig field. The real client is phase 3, so "real" stops the build until then.
+// resulting BuildConfig field.
+val birdEyeBaseUrl = localProperties.getProperty("birdeye.baseUrl")?.trim() ?: ""
+val birdEyeDeviceId = localProperties.getProperty("birdeye.deviceId")?.trim()?.takeIf { it.isNotEmpty() } ?: "eagle-dev"
 val birdEyeApi = localProperties.getProperty("birdeye.api")?.trim() ?: "mock"
 when (birdEyeApi) {
     "mock" -> Unit
-    "real" -> throw GradleException("birdeye.api=real: the real backend client is not built yet (phase 3). Use birdeye.api=mock.")
+    "real" -> if (birdEyeBaseUrl.isEmpty()) throw GradleException("birdeye.api=real needs birdeye.baseUrl in local.properties, for example http://192.168.1.10:8000")
     else -> throw GradleException("birdeye.api must be mock or real, not '$birdEyeApi'.")
 }
 
@@ -46,6 +48,8 @@ android {
         buildConfigField("double", "CAMERA_HEIGHT_M", (cameraHeightSetting ?: 1.0).toString())
         buildConfigField("boolean", "CAMERA_HEIGHT_SET", (cameraHeightSetting != null).toString())
         buildConfigField("String", "BIRDEYE_API", "\"$birdEyeApi\"")
+        buildConfigField("String", "DEVICE_ID", "\"$birdEyeDeviceId\"")
+        buildConfigField("String", "BIRDEYE_BASE_URL", "\"$birdEyeBaseUrl\"")
     }
 
     buildTypes {
@@ -61,6 +65,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    // The model must stay uncompressed so LiteRT can memory-map it.
+    androidResources {
+        noCompress += "tflite"
     }
     buildFeatures {
         compose = true
@@ -85,6 +93,14 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.litert)
+    implementation(libs.litert.gpu)
+    // litert-support 1.4.2 clashes with its own -api artifact (same namespace), so the api one is excluded.
+    implementation(libs.litert.support) {
+        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    }
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

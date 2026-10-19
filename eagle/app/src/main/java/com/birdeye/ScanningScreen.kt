@@ -37,6 +37,8 @@ fun ScanningScreen(
     endShiftReason: EndShiftReason?,
     noGpsSeconds: Int,
     showDebug: Boolean,
+    debugStats: String,
+    debugReason: String,
     onEndShift: () -> Unit,
     onToggleCooling: () -> Unit,
     canAddFake: Boolean,
@@ -96,6 +98,8 @@ fun ScanningScreen(
                     if (showDebug) {
                         // Records the backend refused (4xx other than 429). Debug only: drivers never act on it.
                         Text(stringResource(R.string.debug_rejected, rejected), style = MaterialTheme.typography.bodyLarge)
+                        Text(debugStats, style = MaterialTheme.typography.bodyLarge)
+                        Text(debugReason, style = MaterialTheme.typography.bodyLarge)
                         DebugButton(stringResource(R.string.debug_add_fake), onAddFake, enabled = canAddFake)
                         Row {
                             DebugButton(
@@ -133,7 +137,7 @@ private fun DebugButton(label: String, onClick: () -> Unit, modifier: Modifier =
 internal fun ScanningPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = false, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true,
+            cooling = false, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true, debugStats = "GPU 42 ms, 3.0 fps", debugReason = "top pothole 0.62: review band",
             onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }
@@ -144,7 +148,7 @@ internal fun ScanningPreview() {
 internal fun CoolingPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = true, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = null, noGpsSeconds = 30, showDebug = false,
+            cooling = true, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = null, noGpsSeconds = 30, showDebug = false, debugStats = "", debugReason = "",
             onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }

@@ -48,6 +48,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     val config = Settings.config(app)
     val settings = Settings.app(app)
     val queue = DetectionQueue(app)
+    val pipeline = DetectionPipeline(app, config, settings, queue, Api.deviceId) { lastFix }
 
     /** Wall-clock start of the current shift, for the End of shift counts. */
     var shiftStartWallMs by mutableLongStateOf(System.currentTimeMillis())
@@ -174,7 +175,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startShift(tiltDownDeg: Float) {
-        // Stored for the distance-ahead formula in phase 3. Height comes from local.properties per phone.
+        // Read by the pipeline for the distance-ahead formula. Height comes from local.properties per phone.
         getApplication<Application>().getSharedPreferences("mount", Context.MODE_PRIVATE).edit {
             putFloat("camera_height_m", BuildConfig.CAMERA_HEIGHT_M.toFloat())
             putFloat("tilt_down_deg", tiltDownDeg)
@@ -202,6 +203,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
 
     override fun onCleared() {
         locationManager.removeUpdates(listener)
+        pipeline.close()
     }
 }
 

@@ -130,7 +130,7 @@ fun mountPasses(tilt: Tilt?, settings: AppSettings): Boolean =
 internal val PreviewSettings = AppSettings(
     mountTiltMinDeg = 2.0, mountTiltMaxDeg = 20.0, gpsFixMaxAgeS = 5.0, gpsFixMaxAccuracyM = 10.0, stillSpeedMaxMps = 0.5,
     endShiftStillS = 10.0, endShiftNoFixS = 30.0, distanceMaxAccuracyM = 20.0, scanningBrightness = 0.1f,
-    uploadMaxRecords = 50, uploadBackoffS = 30.0, logKeepDays = 2.0,
+    uploadMaxRecords = 50, uploadBackoffS = 30.0, logKeepDays = 2.0, cropMarginFrac = 0.2, jpegQuality = 85,
 )
 
 @Preview(name = "Start shift, checks failing", widthDp = 400, heightDp = 900)
