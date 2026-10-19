@@ -43,6 +43,14 @@ data class AppSettings(
     val logKeepDays: Double,
     val cropMarginFrac: Double,
     val jpegQuality: Int,
+    // Replay mode only (birdeye.replay=true). INVENTED values, not from a real road or phone.
+    val replayStartLat: Double,
+    val replayStartLon: Double,
+    val replayHeadingDeg: Double,
+    val replaySpeedKmh: Double,
+    val replayAccuracyM: Double,
+    val replayLoop: Boolean,
+    val replayTiltDownDeg: Double,
 )
 
 object Settings {
@@ -83,6 +91,13 @@ object Settings {
             logKeepDays = getDouble("log_keep_days"),
             cropMarginFrac = getDouble("crop_margin_frac"),
             jpegQuality = getInt("jpeg_quality"),
+            replayStartLat = getDouble("replay_start_lat"),
+            replayStartLon = getDouble("replay_start_lon"),
+            replayHeadingDeg = getDouble("replay_heading_deg"),
+            replaySpeedKmh = getDouble("replay_speed_kmh"),
+            replayAccuracyM = getDouble("replay_accuracy_m"),
+            replayLoop = getBoolean("replay_loop"),
+            replayTiltDownDeg = getDouble("replay_tilt_down_deg"),
         )
     }
 }

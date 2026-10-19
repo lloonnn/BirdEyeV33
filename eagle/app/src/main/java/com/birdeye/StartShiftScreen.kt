@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +50,7 @@ fun StartShiftScreen(
     cameraHeightSet: Boolean,
     onAllowPermissions: () -> Unit,
     onStart: () -> Unit,
+    replay: Boolean = false,
     preview: @Composable (Modifier) -> Unit,
 ) {
     Column(
@@ -65,7 +67,12 @@ fun StartShiftScreen(
                 R.string.start_shift,
                 Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
             )
+            if (replay) ReplayLabel()
             if (Api.isMock) MockLabel()
+        }
+        if (replay) {
+            ReplayStart(cameraHeightM, cameraHeightSet, onStart)
+            return@Column
         }
         Box(
             Modifier
@@ -131,6 +138,7 @@ internal val PreviewSettings = AppSettings(
     mountTiltMinDeg = 2.0, mountTiltMaxDeg = 20.0, gpsFixMaxAgeS = 5.0, gpsFixMaxAccuracyM = 10.0, stillSpeedMaxMps = 0.5,
     endShiftStillS = 10.0, endShiftNoFixS = 30.0, distanceMaxAccuracyM = 20.0, scanningBrightness = 0.1f,
     uploadMaxRecords = 50, uploadBackoffS = 30.0, logKeepDays = 2.0, cropMarginFrac = 0.2, jpegQuality = 85,
+    replayStartLat = 3.0, replayStartLon = 101.0, replayHeadingDeg = 90.0, replaySpeedKmh = 30.0, replayAccuracyM = 5.0, replayLoop = true, replayTiltDownDeg = 8.0,
 )
 
 @Preview(name = "Start shift, checks failing", widthDp = 400, heightDp = 900)
@@ -165,4 +173,16 @@ internal fun StartShiftPassingPreview() {
             preview = { CameraPreview(it) },
         )
     }
+}
+
+/** Replay mode: no self checks apply, so only the height warning and Start remain. */
+@Composable
+private fun ReplayStart(cameraHeightM: Double, cameraHeightSet: Boolean, onStart: () -> Unit) {
+    Text(stringResource(R.string.replay_start_note), style = MaterialTheme.typography.bodyLarge)
+    CheckRow(
+        R.string.check_height,
+        if (cameraHeightSet) CheckState.Pass else CheckState.Warn,
+        detail = stringResource(if (cameraHeightSet) R.string.height_set else R.string.height_not_set, "%.2f".format(cameraHeightM)),
+    )
+    PatrolButton(R.string.start_shift, onStart)
 }

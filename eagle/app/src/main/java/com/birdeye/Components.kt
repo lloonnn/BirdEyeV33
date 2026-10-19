@@ -154,3 +154,21 @@ fun Counter(value: String, @StringRes label: Int, modifier: Modifier = Modifier)
         StateLabel(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
+
+/** Visible marker for replay mode (birdeye.replay=true): the frames and GPS are not live. */
+@Composable
+fun ReplayLabel(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(2.dp, BirdEye.status.medium),
+    ) {
+        Text(
+            stringResource(R.string.replay_label),
+            Modifier.padding(horizontal = PatrolSpacing.sm, vertical = PatrolSpacing.xs),
+            style = MaterialTheme.typography.labelLarge,
+            color = BirdEye.status.medium,
+        )
+    }
+}

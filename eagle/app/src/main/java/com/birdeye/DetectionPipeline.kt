@@ -2,12 +2,9 @@ package com.birdeye
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.location.Location
 import android.os.SystemClock
 import android.util.Log
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,7 +16,6 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.UUID
-import java.util.concurrent.Executors
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -31,8 +27,8 @@ data class PipelineStats(val backend: String? = null, val inferenceMs: Double = 
 )
 
 /**
- * Camera frames to queued records: sample, detect, crop, locate, queue. Video is never stored: a frame
- * lives only inside [analyze] and is dropped at the end. Detection runs on its own single thread; the
+ * Frames from a [FrameSource] to queued records: sample, detect, crop, locate, queue. Video is never stored: a frame
+ * lives only inside [process] and is dropped at the end. Detection runs on the source's own thread; the
  * save band goes to the queue through the duplicate filter, the review band is dropped for now.
  */
 class DetectionPipeline(
@@ -41,55 +37,25 @@ class DetectionPipeline(
     private val settings: AppSettings,
     private val queue: DetectionQueue,
     private val deviceId: String,
+    private val source: FrameSource,
     private val lastFix: () -> Location?,
 ) {
     private val appContext = context.applicationContext
-    val executor = Executors.newSingleThreadExecutor { Thread(it, "birdeye-detect") }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _stats = MutableStateFlow(PipelineStats())
     val stats: StateFlow<PipelineStats> = _stats
 
     private var detector: Detector? = null
     private var loadFailed = false
-    private var lastSampleMs = 0L
     private var avgInferenceMs = 0.0
     private val doneAtMs = ArrayDeque<Long>()
 
-    /** Analysis use case for CameraX, already pointed at this pipeline. */
-    fun analysisUseCase(): ImageAnalysis = ImageAnalysis.Builder()
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-        .build()
-        .also { it.setAnalyzer(executor) { image -> analyze(image) } }
+    /** Starts pulling frames from the source. Each frame is processed on the source's thread, one at a time. */
+    fun start() = source.start(::process)
 
-    private fun analyze(image: ImageProxy) {
-        try {
-            val nowMs = SystemClock.elapsedRealtime()
-            // Half a camera frame of slack, so 30 fps input still gives the configured rate.
-            if (nowMs - lastSampleMs < 1000.0 / config.frameRate - 16) return
-            lastSampleMs = nowMs
-            val frame = upright(image)
-            try {
-                process(frame)
-            } finally {
-                frame.recycle()
-            }
-        } catch (e: Throwable) {
-            Log.e("BirdEye", "Frame failed", e)
-        } finally {
-            image.close()
-        }
-    }
+    fun stop() = source.stop()
 
-    private fun upright(image: ImageProxy): Bitmap {
-        val raw = image.toBitmap()
-        val rotation = image.imageInfo.rotationDegrees
-        if (rotation == 0) return raw
-        val rotated = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, Matrix().apply { postRotate(rotation.toFloat()) }, true)
-        raw.recycle()
-        return rotated
-    }
-
+    @Synchronized
     private fun process(frame: Bitmap) {
         val det = detector ?: run {
             if (loadFailed) return
@@ -158,7 +124,7 @@ class DetectionPipeline(
             )
             scope.launch {
                 val decision = queue.add(record, capturedAtMs, jpeg)
-                Log.i("BirdEye", "Detection ${record.defectType.wire} %.2f ${record.clientId.take(8)}: $decision".format(record.confidence))
+                Log.i("BirdEye", "Detection${if (BuildConfig.REPLAY) " [REPLAY, test footage]" else ""} ${record.defectType.wire} %.2f ${record.clientId.take(8)}: $decision".format(record.confidence))
                 why(if (decision == DupDecision.Drop) "duplicate" else "saved")
             }
         }
@@ -215,9 +181,11 @@ class DetectionPipeline(
         }
     }
 
+    @Synchronized
     fun close() {
-        executor.execute { detector?.close(); detector = null }
-        executor.shutdown()
+        source.stop()
+        detector?.close()
+        detector = null
     }
 
     companion object {

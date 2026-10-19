@@ -138,11 +138,11 @@ fun backCameraFov(context: Context): CameraFov? = try {
 }
 
 /**
- * CameraX Preview, plus frame analysis when a [pipeline] is given. Bound to the activity's lifecycle.
+ * CameraX Preview, plus frame analysis when a [source] is given. Bound to the activity's lifecycle.
  * No foreground service (plan, tier 1).
  */
 @Composable
-fun CameraPreview(modifier: Modifier = Modifier, pipeline: DetectionPipeline? = null) {
+fun CameraPreview(modifier: Modifier = Modifier, source: CameraFrameSource? = null) {
     if (LocalInspectionMode.current) {
         Box(modifier.background(Color(0xFF1F2937)))
         return
@@ -155,9 +155,9 @@ fun CameraPreview(modifier: Modifier = Modifier, pipeline: DetectionPipeline? = 
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
     }
-    DisposableEffect(owner, pipeline) {
+    DisposableEffect(owner, source) {
         val useCase = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
-        val analysis = pipeline?.analysisUseCase()
+        val analysis = source?.analysisUseCase()
         val future = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
         future.addListener({

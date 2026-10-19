@@ -23,6 +23,8 @@ val cameraHeightSetting = localProperties.getProperty("birdeye.cameraHeightM")?.
 // resulting BuildConfig field.
 val birdEyeBaseUrl = localProperties.getProperty("birdeye.baseUrl")?.trim() ?: ""
 val birdEyeDeviceId = localProperties.getProperty("birdeye.deviceId")?.trim()?.takeIf { it.isNotEmpty() } ?: "eagle-dev"
+// Replay mode (key birdeye.replay=true): a recorded video and fake GPS replace the camera and GPS. Works in release builds too.
+val birdEyeReplay = localProperties.getProperty("birdeye.replay")?.trim()?.lowercase() == "true"
 val birdEyeApi = localProperties.getProperty("birdeye.api")?.trim() ?: "mock"
 when (birdEyeApi) {
     "mock" -> Unit
@@ -48,6 +50,7 @@ android {
         buildConfigField("double", "CAMERA_HEIGHT_M", (cameraHeightSetting ?: 1.0).toString())
         buildConfigField("boolean", "CAMERA_HEIGHT_SET", (cameraHeightSetting != null).toString())
         buildConfigField("String", "BIRDEYE_API", "\"$birdEyeApi\"")
+        buildConfigField("boolean", "REPLAY", birdEyeReplay.toString())
         buildConfigField("String", "DEVICE_ID", "\"$birdEyeDeviceId\"")
         buildConfigField("String", "BIRDEYE_BASE_URL", "\"$birdEyeBaseUrl\"")
     }

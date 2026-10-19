@@ -5,9 +5,8 @@ import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
@@ -48,7 +47,12 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     val config = Settings.config(app)
     val settings = Settings.app(app)
     val queue = DetectionQueue(app)
-    val pipeline = DetectionPipeline(app, config, settings, queue, Api.deviceId) { lastFix }
+    val replay = BuildConfig.REPLAY
+    val frameSource: FrameSource = if (replay) VideoFrameSource(app, config, settings) else CameraFrameSource(config)
+    private val locationSource: LocationSource =
+        if (replay) ReplayLocationSource.create(app, config, settings) { frameSource.videoTimeMs.value ?: 0L }
+        else LocationManagerSource(app, (config.gpsIntervalS * 1000).toLong())
+    val pipeline = DetectionPipeline(app, config, settings, queue, Api.deviceId, frameSource) { lastFix }
 
     /** Wall-clock start of the current shift, for the End of shift counts. */
     var shiftStartWallMs by mutableLongStateOf(System.currentTimeMillis())
@@ -95,31 +99,14 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     private var shiftStartMs = 0L
     private var lastDistanceFix: Location? = null
     private var listening = false
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val locationManager = app.getSystemService(LocationManager::class.java)
 
-    // All four methods are implemented: on API 26 to 29 they are abstract, and a missing one crashes.
-    private val listener = object : LocationListener {
-        override fun onLocationChanged(location: Location) = onFix(location)
-        override fun onProviderEnabled(provider: String) {}
-        override fun onProviderDisabled(provider: String) {}
-        @Deprecated("Required on API 26 to 28")
-        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-    }
-
     fun startLocation() {
-        val context: Context = getApplication()
-        if (listening || !hasPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)) return
-        try {
-            locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER,
-                (config.gpsIntervalS * 1000).toLong(),
-                0f,
-                listener,
-                Looper.getMainLooper(),
-            )
-            listening = true
-        } catch (e: SecurityException) {
-            listening = false
+        if (listening) return
+        // Replay fixes come from a background thread; the screen state is written on the main thread.
+        listening = locationSource.start { fix ->
+            if (replay) mainHandler.post { onFix(fix) } else onFix(fix)
         }
     }
 
@@ -165,6 +152,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
      * driver must still be able to end the shift, for example in a covered car park.
      */
     fun endShiftReason(nowMs: Long): EndShiftReason? {
+        if (replay) return EndShiftReason.Still // the fake track keeps moving, and nobody is driving
         val since = stillSinceMs
         if (since != null && hasFix(nowMs) && nowMs - since >= settings.endShiftStillS * 1000) {
             return EndShiftReason.Still
@@ -191,9 +179,12 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
         }
         cooling = false
         screen = Screen.Scanning
+        if (replay) startLocation() // no permission or GPS check in replay
+        pipeline.start()
     }
 
     fun endShift() {
+        pipeline.stop()
         screen = Screen.EndOfShift
     }
 
@@ -202,7 +193,7 @@ class ShiftViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
-        locationManager.removeUpdates(listener)
+        locationSource.stop()
         pipeline.close()
     }
 }

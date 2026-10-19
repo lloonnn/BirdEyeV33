@@ -49,6 +49,8 @@
 
     <!-- Invented-data marking (plan rule 3) and debug-only controls -->
     <string name="mock_label">MOCK</string>
+    <string name="replay_label">REPLAY</string>
+    <string name="replay_start_note">Replay mode: recorded video and fake GPS. Permissions, GPS, charging and mount checks are skipped.</string>
     <string name="debug_cooling_on">Debug: show cooling</string>
     <string name="debug_cooling_off">Debug: show scanning</string>
     <!-- %1$d: number of records the backend rejected -->
