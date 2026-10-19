@@ -49,7 +49,11 @@
 
     <!-- Invented-data marking (plan rule 3) and debug-only controls -->
     <string name="mock_label">MOCK</string>
-    <string name="mock_counts_note">Counts are placeholders until the queue exists</string>
     <string name="debug_cooling_on">Debug: show cooling</string>
     <string name="debug_cooling_off">Debug: show scanning</string>
+    <!-- %1$d: number of records the backend rejected -->
+    <string name="debug_rejected">Rejected: %1$d</string>
+    <string name="debug_add_fake">Debug: add fake detection</string>
+    <string name="debug_mock_fail_on">Debug: make mock fail</string>
+    <string name="debug_mock_fail_off">Debug: mock fails, tap to fix</string>
 </resources>
