@@ -1,6 +1,7 @@
+import json
 from datetime import timedelta
 
-from tests.conftest import FROZEN_NOW, count, make_record, post_batch
+from tests.conftest import CROP, FROZEN_NOW, count, make_record, post_batch
 
 
 def test_same_batch_twice_stores_one_sighting(client, engine):
@@ -69,3 +70,25 @@ def test_crop_saved_under_client_id_and_served(client):
     response = client.get("/crops/serve-1.jpg")
     assert response.status_code == 200
     assert response.content.startswith(b"\xff\xd8\xff")
+
+
+def post_raw_records(client, records_json: str):
+    return client.post(
+        "/detections/batch",
+        data={"records": records_json},
+        files=[("crop.jpg", ("crop.jpg", CROP, "image/jpeg"))],
+    )
+
+
+def test_nan_and_infinity_in_records_rejected_422(client, engine):
+    good = json.dumps(make_record("n-1"))
+    in_known_field = good.replace('"confidence": 0.91', '"confidence": Infinity')
+    in_ignored_field = good[:-1] + ', "extra": NaN}'
+    in_nested_field = good[:-1] + ', "extra": {"x": [-Infinity]}}'
+    for body in (in_known_field, in_ignored_field, in_nested_field):
+        assert "Infinity" in body or "NaN" in body
+        response = post_raw_records(client, f"[{body}]")
+        assert response.status_code == 422, body
+        assert isinstance(response.json()["detail"], list)
+    assert count(engine, "sightings") == 0
+    assert post_raw_records(client, f"[{good}]").json() == {"accepted": 1, "duplicates": 0}

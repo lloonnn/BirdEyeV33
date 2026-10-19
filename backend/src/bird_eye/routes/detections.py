@@ -72,12 +72,18 @@ async def post_detection_batch(request: Request) -> BatchResult:
     return await run_in_threadpool(store)
 
 
+def _reject_constant(name: str) -> None:
+    """json.loads accepts NaN and Infinity, which are not JSON. They would fail later when the record is
+    stored as jsonb, even inside an ignored extra field, so they are refused at parse time."""
+    raise ValueError(f"{name} is not valid JSON")
+
+
 async def _read_records(part: Any, max_records: int) -> list[Any]:
     if part is None:
         raise invalid(("body", "records"), "records part missing")
     raw = await part.read() if isinstance(part, UploadFile) else part
     try:
-        records = json.loads(raw)
+        records = json.loads(raw, parse_constant=_reject_constant)
     except (ValueError, UnicodeDecodeError):
         raise invalid(("body", "records"), "records must be a JSON array") from None
     if not isinstance(records, list):

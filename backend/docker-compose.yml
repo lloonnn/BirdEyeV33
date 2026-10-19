@@ -7,7 +7,8 @@ services:
       POSTGRES_PASSWORD: birdeye
       POSTGRES_DB: birdeye
     ports:
-      - "5432:5432"
+      # Localhost only: the database has a default password and only the API on this laptop needs it.
+      - "127.0.0.1:5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./docker/initdb/01-test-db.sql:/docker-entrypoint-initdb.d/01-test-db.sql:ro

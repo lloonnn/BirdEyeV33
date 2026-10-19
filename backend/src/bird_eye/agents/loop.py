@@ -19,7 +19,7 @@ class Tool:
     description: str
     parameters: dict[str, Any]  # JSON schema
     fn: Callable[[Connection, dict[str, Any], int], dict[str, Any]]  # (conn, args, run_id) -> result
-    final: bool = False  # the run ends when this tool succeeds
+    final: bool = False  # a successful call marks the run as having produced its output; the run goes on
 
 
 @dataclass
@@ -81,10 +81,13 @@ def run(
         declarations = [{"name": t.name, "description": t.description, "parameters": t.parameters} for t in tools]
         model = make_model(settings, system, declarations)
         message: Any = goal
+        saved = False  # a final tool has succeeded; the model may still make more calls, e.g. one draft per group
         while steps < settings.agent_max_steps:
             steps += 1
             calls = model.send(message)
             if not calls:
+                if saved:
+                    return _finish(engine, run_id, steps, "ok", None)
                 return _finish(engine, run_id, steps, "error", "the model stopped without calling the final tool")
             results = []
             finished = False
@@ -101,9 +104,10 @@ def run(
                         result = {"error": str(exc)}
                 _log_call(engine, run_id, steps, call.name, call.args, result)
                 results.append(ToolResult(call.name, result))
-            if finished:
-                return _finish(engine, run_id, steps, "ok", None)
+            saved = saved or finished
             message = results
+        if saved:
+            return _finish(engine, run_id, steps, "ok", None)  # output was saved; the step limit only stopped extras
         return _finish(engine, run_id, steps, "step_limit", f"no final tool call in {steps} steps")
     except Exception as exc:  # noqa: BLE001 - Gemini, network and key errors must not escape a run
         return _finish(engine, run_id, steps, "error", f"{type(exc).__name__}: {exc}")

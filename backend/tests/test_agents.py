@@ -32,9 +32,10 @@ def draft_call(ids, **extra):
 def test_work_order_agent_creates_pending_draft(client, app):
     a = verified_defect(client, "a-1")
     b = verified_defect(client, "a-2", north_m=50)
-    model = FakeModel([Call("get_defects", {})], [Call("group_nearby", {"defect_ids": [a, b]})], [draft_call([a, b])])
+    model = FakeModel([Call("get_defects", {})], [Call("group_nearby", {"defect_ids": [a, b]})], [draft_call([a, b])], [])
     result = run(app, "work-order", model)
     assert result.outcome == "ok"
+    assert result.steps == 4  # the model stopped by itself after saving its draft
     orders = client.get("/work-orders", params={"status": "pending_approval"}).json()
     assert [o["defect_ids"] for o in orders] == [[a, b]]
     # the agent changed no defect status
@@ -56,7 +57,7 @@ def test_get_defects_skips_defects_already_on_a_draft(client, app):
 
 def test_draft_with_unknown_defect_id_rejected(client, app):
     a = verified_defect(client, "a-1")
-    model = FakeModel([draft_call([a, 9999])], [draft_call([a])])
+    model = FakeModel([draft_call([a, 9999])], [draft_call([a])], [])
     result = run(app, "work-order", model)
     assert "not found" in model.sent[1][0].result["error"]
     assert result.outcome == "ok"  # the model corrected itself
@@ -82,7 +83,7 @@ def test_brief_citing_unlisted_id_rejected(client, app):
     b = verified_defect(client, "a-2", north_m=50)
     bad = Call("post_brief", {"text": f"Fix #{a} and #{b} first.", "defect_ids": [a]})
     good = Call("post_brief", {"text": f"Fix #{a} first.", "defect_ids": [a]})
-    model = FakeModel([bad], [good])
+    model = FakeModel([bad], [good], [])
     result = run(app, "brief", model)
     assert str(b) in model.sent[1][0].result["error"]
     assert result.outcome == "ok"
@@ -109,13 +110,13 @@ def test_step_limit_stops_loop(client, app):
 
 def test_run_logged_with_tool_calls(client, app):
     a = verified_defect(client, "a-1")
-    result = run(app, "work-order", FakeModel([Call("get_defects", {})], [draft_call([a])]))
+    result = run(app, "work-order", FakeModel([Call("get_defects", {})], [draft_call([a])], []))
     with app.state.engine.connect() as conn:
         run_row = conn.execute(text("SELECT agent, outcome, steps FROM agent_runs WHERE id = :i"), {"i": result.run_id}).one()
         calls = conn.execute(
             text("SELECT step, tool, result FROM agent_tool_calls WHERE run_id = :i ORDER BY step"), {"i": result.run_id}
         ).all()
-    assert tuple(run_row) == ("work-order", "ok", 2)
+    assert tuple(run_row) == ("work-order", "ok", 3)
     assert [(c[0], c[1]) for c in calls] == [(1, "get_defects"), (2, "create_work_order_draft")]
     assert calls[1][2]["status"] == "pending_approval"
 
@@ -162,3 +163,47 @@ def test_agents_have_no_status_changing_tool(app):
     for agent in ("work-order", "brief"):
         names = {t.name for t in make_tools(app.state.settings, app.state.storage, agent)}
         assert not names & {"verify", "approve", "done", "set_status", "send"}
+
+
+def test_final_tool_does_not_end_the_run_one_draft_per_group(client, app):
+    a = verified_defect(client, "a-1")
+    b = verified_defect(client, "a-2", north_m=500)  # far from a: a second group
+    model = FakeModel([Call("get_defects", {})], [draft_call([a])], [draft_call([b])], [])
+    result = run(app, "work-order", model)
+    assert result.outcome == "ok"
+    assert result.steps == 4
+    orders = client.get("/work-orders", params={"status": "pending_approval"}).json()
+    assert sorted(o["defect_ids"] for o in orders) == [[a], [b]]
+
+
+def test_model_stops_without_saving_anything_is_an_error(client, app):
+    verified_defect(client, "a-1")
+    result = run(app, "work-order", FakeModel([Call("get_defects", {})], []))
+    assert result.outcome == "error"
+    assert "final tool" in result.error
+    assert count(app.state.engine, "work_orders") == 0
+
+
+def test_step_limit_after_a_saved_draft_is_ok(client, app):
+    a = verified_defect(client, "a-1")
+    result = run(app, "work-order", FakeModel([draft_call([a])]), agent_max_steps=3)  # then get_defects forever
+    assert result.outcome == "ok"
+    assert result.steps == 3
+    assert count(app.state.engine, "work_orders") == 1
+
+
+def test_since_without_offset_is_malaysia_time(client, app, monkeypatch):
+    from datetime import UTC, datetime
+
+    from bird_eye import clock
+    from tests.conftest import at, sight
+
+    # The real clock returns UTC; the test clock is frozen in Malaysia time, which would hide the bug.
+    monkeypatch.setattr(clock, "now", lambda: datetime(2026, 10, 15, 2, 0, tzinfo=UTC))
+    sight(client, "a-1", at(14, 6))  # 06:00 Malaysia time is 22:00 UTC on the 13th
+    defect_id = client.get("/defects", params={"bbox": "101,3,102,4"}).json()[0]["id"]
+    client.post(f"/defects/{defect_id}/verify")
+    model = FakeModel([Call("get_defects", {"since": "2026-10-14"})], [Call("get_defects", {"since": "2026-10-14T07:00"})])
+    run(app, "work-order", model, agent_max_steps=3)
+    assert [d["id"] for d in model.sent[1][0].result["defects"]] == [defect_id]  # from 00:00 Malaysia time
+    assert model.sent[2][0].result["defects"] == []  # 07:00 is after the sighting

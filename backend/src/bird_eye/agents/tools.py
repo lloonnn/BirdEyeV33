@@ -4,6 +4,7 @@ import math
 import re
 from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Connection, text
 
@@ -59,7 +60,8 @@ def make_tools(settings: Settings, storage: CropStorage, agent: str) -> list[Too
             except ValueError:
                 raise ToolError("since must be an ISO date or time, for example 2026-10-12") from None
             if since.tzinfo is None:
-                since = since.replace(tzinfo=clock.now().tzinfo)
+                # A date or time without an offset is Malaysia time, like the last_seen it is compared with.
+                since = since.replace(tzinfo=ZoneInfo(settings.local_timezone))
         found = list_defects(
             conn, settings, storage, bbox=_WORLD, defect_type=None,
             statuses=[status] if status else None, limit=settings.defects_limit_max,
