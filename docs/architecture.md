@@ -4,7 +4,9 @@ Sources: `docs/reference/architecture-source.md` (main) and `docs/reference/prop
 
 ## 1. Overview
 
-Bird Eye v33 turns the vehicles that already patrol a township into a daily road inspection network. A dedicated Android phone in each car or van runs a small object detector on camera frames and finds potholes and cracks. Only small records with a blurred crop, a location and a time leave the phone. A backend merges repeated sightings into one defect, ranks defects by urgency and confirms repairs from later passes that actually saw the spot. A dashboard shows staff the map, the review queue, agent-drafted work orders, coverage and device status.
+Bird Eye v33 turns the vehicles that already patrol a township into a daily road inspection network. A dedicated Android phone in each car or van runs a small object detector on camera frames and finds potholes and cracks. Only small records with a blurred crop, a location and a time leave the phone. A backend merges repeated sightings into one defect, ranks defects by urgency and confirms repairs from later passes that actually saw the spot. A dashboard shows staff the map, the review queue, agent-drafted work orders and the daily brief.
+
+**Prototype scope cut:** coverage and device status are not in the prototype (decision 93). This removes the Coverage and Devices pages, `GET /coverage`, `GET /devices`, and the backend storage of heartbeats and tracks. Reason: hackathon time goes to the detection to repair loop. The rest of this document keeps their design for after the prototype.
 
 **Pilot scope:** cars and vans only, one precinct of City of Elmina, no resident-facing screens. Reason: phones are unreliable on motorcycles in Malaysian heat and vibration.
 
@@ -14,7 +16,7 @@ Bird Eye v33 turns the vehicles that already patrol a township into a daily road
 | Backend API | `backend/` (FastAPI, uv) | The demo laptop | Ingest of records and tracks, model distribution, dashboard data |
 | Database and storage | n/a | PostgreSQL with PostGIS in Docker; crops on local disk behind a storage interface | Defects, sightings, GPS tracks, coverage, work orders, reviews, model versions |
 | Background workers | `backend/` | Same server, scheduled jobs run by APScheduler | Merging sightings into defects, urgency ranking, coverage gaps, repair confirmation |
-| Agent service | `backend/`, package `bird_eye.agents` | Same server, calls a language model API | Drafting work orders and the daily brief; drafts wait for approval |
+| Agent service | `backend/`, package `bird_eye.agents` | Same server, calls the Gemini API | Drafting work orders and the daily brief; drafts wait for approval |
 | Dashboard | `dashboard/` | Browser; Next.js, shadcn/ui Vega style, Recharts, Leaflet | Live map, review queue, work order approval, device status, coverage view |
 | Training pipeline | `ml/` (separate uv project) | Developer machine or cloud GPU, on demand | Training, evaluation, conversion to TensorFlow Lite (LiteRT), publishing |
 
@@ -293,7 +295,7 @@ The escalation agent from the source is not built in this version. Reason: it ne
 
 ### How a run works
 
-A scheduled job starts the agent with its goal and tool list. The agent calls the language model API with tool calling. The backend executes each tool call and returns the result. The loop ends when the agent saves its draft or reaches a step limit. Implement it as a small state machine in Python, or with a framework such as LangGraph.
+A scheduled job starts the agent with its goal and tool list. The agent calls the language model API with tool calling. The backend executes each tool call and returns the result. The loop ends when the agent saves its draft or reaches a step limit. It is a plain Python tool loop calling Gemini through the `google-genai` SDK, with no agent framework (decision 92). Reason: a short loop the team writes is easy to read and log.
 
 ### Guardrails
 
@@ -387,7 +389,8 @@ Privacy:
 4. eagle app running the same model on the phone, uploading to the backend.
 5. Repair confirmation and the review queue.
 6. Work order agent and daily brief.
-7. Coverage and device status, if time allows.
+
+Coverage and device status are not built in the prototype (decision 93). Their design stays in this document for after the prototype.
 
 The demo only needs steps 1 to 5 working end to end. The rest can be shown at smaller scale.
 
@@ -433,13 +436,12 @@ Only open, verify and mentor items remain. Everything else is settled in [decisi
 1. Which detector, after the licence check against the hackathon IP terms.
 2. The tool path from PyTorch to LiteRT.
 3. Which face and plate blur model runs on the crop.
-4. Which language model the agents use.
-5. What to do before the demo if the RDD2022 model misses most local potholes and cracks. Local labelling is ruled out for now; local testing happens in the pilot.
-6. The urgency cut-offs that set each defect's `urgency_band` to high, medium or low (decision 65).
+4. What to do before the demo if the RDD2022 model misses most local potholes and cracks. Local labelling is ruled out for now; local testing happens in the pilot.
+5. The urgency cut-offs that set each defect's `urgency_band` to high, medium or low (decision 65).
 
 **Verify**
-7. Whether RDD2022 test labels are public. If not, hold out a fixed slice of the training data.
-8. Before any SDP deployment: the licence review deferred by decision 7, including RDD2022's terms, CARTO tiles and every row marked verify in decisions.md.
+6. Whether RDD2022 test labels are public. If not, hold out a fixed slice of the training data.
+7. Before any SDP deployment: the licence review deferred by decision 7, including RDD2022's terms, CARTO tiles and every row marked verify in decisions.md.
 
 **Mentors**
-9. How SDP finds defects today and how long a typical repair takes: the baseline the pilot is measured against.
+8. How SDP finds defects today and how long a typical repair takes: the baseline the pilot is measured against.

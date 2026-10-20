@@ -1,5 +1,5 @@
 /*
- * Bird Eye v33 theme for the dashboard (Next.js + Tailwind CSS 4 + shadcn/ui + Bklit).
+ * Bird Eye v33 theme for the dashboard (Next.js + Tailwind CSS 4 + shadcn/ui + Recharts).
  * The same colour values are mirrored in the Android Compose theme.
  *
  * HOW TO APPLY
@@ -48,13 +48,13 @@
   --sidebar-ring: #a3a3a3;
 
   /* Status: the one colour language shared by map pins, badges, charts and the app */
-  --status-high: #b91c1c;     /* fix first, verified, rejected, unreachable */
+  --status-high: #b91c1c;     /* fix first, rejected, unreachable */
   --status-medium: #d97706;   /* soon, awaiting approval, cooling down, partial */
   --status-low: #1d4ed8;      /* low urgency, detected */
   --status-done: #15803d;     /* confirmed fixed, scanning, on target */
   --status-neutral: #a3a3a3;  /* scheduled, idle */
 
-  /* Charts (Bklit reads these) */
+  /* Charts (Recharts reads these) */
   --chart-1: #171717;         /* fixed */
   --chart-2: #a3a3a3;         /* detected */
   --chart-3: #d97706;
@@ -168,4 +168,33 @@
   body { @apply bg-background text-foreground font-sans; }
   /* Numbers line up in tables and stat cards */
   .tabular { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+}
+/*
+ * Glass for the Overview's floating panels: one shared class. Put .no-glass
+ * on the page root to turn blur off in one place if panning stutters; the
+ * layout does not change.
+ */
+@layer components {
+  .panel {
+    /* 0.55, not 0.45: at 0.45 small muted text fell to 4.2:1 over light map areas. */
+    background: var(--panel-bg, rgb(30 30 30 / 0.55));
+    /* Literal value: the CSS build drops the unprefixed property when it goes through a variable. */
+    backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--panel-border, rgb(255 255 255 / 0.1));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 24px rgb(0 0 0 / 0.35);
+    border-radius: 16px;
+    padding: 16px;
+    /* Small muted text inside glass only: light enough for 4.5:1 over the
+       lightest map spot behind a panel. The global token is unchanged. */
+    --muted-foreground: #b0b0b0;
+  }
+
+  .no-glass {
+    --panel-bg: #171717;
+    --panel-border: #2e2e2e;
+  }
+
+  .no-glass .panel {
+    backdrop-filter: none;
+  }
 }

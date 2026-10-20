@@ -1,0 +1,33 @@
+# invented, test area only. Not real places.
+# Hand-made points that stand in for OSM schools, main roads and junctions, which are cut
+# from the prototype (decision 93). No names (decision 91). Coordinates are WGS 84 degrees.
+
+[[point]]
+kind = "school"
+lat = 3.186095
+lon = 101.51525
+
+[[point]]
+kind = "school"
+lat = 3.182322
+lon = 101.508142
+
+[[point]]
+kind = "main_road"
+lat = 3.187936
+lon = 101.517544
+
+[[point]]
+kind = "main_road"
+lat = 3.183894
+lon = 101.521143
+
+[[point]]
+kind = "junction"
+lat = 3.17801
+lon = 101.515789
+
+[[point]]
+kind = "junction"
+lat = 3.182547
+lon = 101.508007

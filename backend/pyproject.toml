@@ -1,17 +1,36 @@
 [project]
-name = "backend"
+name = "bird-eye"
 version = "0.1.0"
-description = "Add your description here"
+description = "Bird Eye v33 backend: ingest, merge, lifecycle, urgency and agents"
 readme = "README.md"
 authors = [
     { name = "lloonnn", email = "shauloon.k@gmail.com" }
 ]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "alembic>=1.20.0",
+    "fastapi>=0.143.1",
+    "google-genai>=2.31.0",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.16.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.1.4",
+    "uvicorn>=0.54.0",
+]
 
 [project.scripts]
-backend = "backend:main"
+bird-eye = "bird_eye:main"
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pillow>=12.3.0",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

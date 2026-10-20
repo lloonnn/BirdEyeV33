@@ -89,8 +89,16 @@ cd BirdEyeV33
 
 Install Node.js 20.9 or later from [nodejs.org](https://nodejs.org) (the LTS version is fine). npm comes with it. Next.js 16.4 needs at least 20.9.
 
+Before the first run, copy the settings template and add the map key:
+
 ```bash
 cd dashboard
+cp .env.example .env.local    # then paste the CARTO key after NEXT_PUBLIC_CARTO_KEY=
+```
+
+Get a free key at [carto.com/basemaps/apikey](https://carto.com/basemaps/apikey), or ask the team for the shared one. Without it the map shows an "API key required" watermark. `.env.local` is ignored by git, so the key is never committed.
+
+```bash
 npm install        # first time, and again whenever package.json changes
 npm run dev        # open http://localhost:3000
 ```

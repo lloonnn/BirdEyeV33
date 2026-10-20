@@ -39,8 +39,8 @@ For 404 and 409, `detail` is a string. For 422, FastAPI returns `detail` as a li
 | `GET /config` | Phone | Model version, model hash and thresholds |
 | `GET /models/{version}` | Phone | Raw `.tflite` bytes |
 | `POST /detections/batch` | Phone | `200` with accepted and duplicate counts |
-| `POST /tracks` | Phone | `204` |
-| `POST /heartbeat` | Phone | `204` |
+| `POST /tracks` | Phone | `204`; not in the prototype |
+| `POST /heartbeat` | Phone | `204`; not in the prototype |
 | `GET /defects` | Dashboard | List of defects |
 | `GET /defects/{id}` | Dashboard | One defect with its sightings |
 | `POST /defects/{id}/verify` | Dashboard | The updated defect: Detected to Verified |
@@ -52,8 +52,8 @@ For 404 and 409, `detail` is a string. For 422, FastAPI returns `detail` as a li
 | `POST /work-orders/{id}/approve` | Dashboard | The updated work order; its defects go to Scheduled |
 | `POST /work-orders/{id}/reject` | Dashboard | The updated work order |
 | `POST /work-orders/{id}/done` | Dashboard | The updated work order; its defects go to Fixed |
-| `GET /devices` | Dashboard | List of devices with their latest status |
-| `GET /coverage` | Dashboard | GeoJSON FeatureCollection of road segments |
+| `GET /devices` | Dashboard | List of devices with their latest status; not in the prototype |
+| `GET /coverage` | Dashboard | GeoJSON FeatureCollection of road segments; not in the prototype |
 | `GET /brief/latest` | Dashboard | The latest daily brief, or `404` |
 
 ## Phone endpoints
@@ -133,6 +133,8 @@ Response `200`:
 
 ### `POST /tracks`
 
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
+
 Sent with each upload batch. Returns `204`.
 
 ```json
@@ -155,6 +157,8 @@ Sent with each upload batch. Returns `204`.
 The backend uses only the active ranges for coverage, so road driven while the phone was paused counts as missed. It estimates frames per segment as active seconds within 10 m of the segment times the range's frame rate. A segment with 6 or more frames on a pass counts as seen (starting value, to be tuned). Reason: the phone sends no per-frame data, so the frame rate in each range is what makes the count possible.
 
 ### `POST /heartbeat`
+
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
 
 Sent every 60 seconds (starting value, to be tuned). Returns `204`.
 
@@ -217,7 +221,9 @@ Reason: network errors, server errors and rate limits are temporary, but a 4xx o
   "sighting_count": 5,
   "crop_url": "/crops/3f6c9e2a.jpg",
   "segment_id": 1187,
-  "work_order_id": null
+  "work_order_id": null,
+  "confirmed_at": null,
+  "location_reasons": ["school", "junction"]
 }
 ```
 
@@ -228,7 +234,9 @@ Reason: network errors, server errors and rate limits are temporary, but a 4xx o
 - `lat` and `lon` are the average of the defect's sightings.
 - `crop_url` points to the defect's best crop.
 - `segment_id` is the nearest road segment, used for coverage only.
-- `work_order_id` is the work order that covers the defect, or `null` when none does. Reason: otherwise the dashboard must search every work order to find it.
+- `work_order_id` is set when a work order covering the defect is approved. It is non-null exactly when a job covers the defect, and `null` otherwise. Reason: otherwise the dashboard must search every work order to find it.
+- `confirmed_at` is when the defect reached `confirmed`, or `null`. Reason: the dashboard can show how long a repair has held.
+- `location_reasons` lists why the location term scores high: any of `school`, `main_road` and `junction`, or an empty list. Reason: the dashboard shows the reason as a word, without street or place names (decision 91).
 
 ### `GET /defects`
 
@@ -238,7 +246,7 @@ Query parameters, all optional except `bbox`:
 |---|---|
 | `bbox` | `minLon,minLat,maxLon,maxLat`; only defects inside it |
 | `type` | `pothole` or `crack` |
-| `status` | One status value |
+| `status` | One status, or a comma-separated list, for example `verified,scheduled` |
 | `sort` | `urgency_desc`, the only value in v0 |
 | `limit` | Maximum number of defects returned |
 
@@ -246,7 +254,7 @@ Returns a JSON array of defect objects.
 
 ### `GET /defects/{id}`
 
-Returns the defect object plus its sightings, or 404.
+Returns the defect object plus its sightings and status history, or 404.
 
 ```json
 {
@@ -262,9 +270,15 @@ Returns the defect object plus its sightings, or 404.
       "crop_url": "/crops/3f6c9e2a.jpg",
       "device_id": "car-03"
     }
+  ],
+  "history": [
+    { "status": "detected", "at": "2026-10-09T08:02:10+08:00" },
+    { "status": "verified", "at": "2026-10-10T08:31:44+08:00" }
   ]
 }
 ```
+
+`history` lists every status the defect has had, oldest first, with the time it changed. Reason: a reopened defect keeps its past, and the supervisor can see it.
 
 ### `POST /defects/{id}/verify` and `POST /defects/{id}/reject`
 
@@ -272,7 +286,7 @@ No body. Each returns the updated defect object. Verify moves it from `detected`
 
 ### `GET /reviews`
 
-Returns a JSON array:
+Optional query parameter `status`: `pending` or `answered`, default `pending`. Reason: the review queue shows only work still to do. Returns a JSON array:
 
 ```json
 [
@@ -320,7 +334,7 @@ Body:
   "id": 15,
   "status": "pending_approval",
   "crew_type": "patching",
-  "description": "Patch 2 potholes on Jalan Example near the school gate.",
+  "description": "Patch 2 potholes near a school, segment 1187.",
   "defect_ids": [41, 44],
   "created_at": "2026-10-12T09:00:00+08:00",
   "approved_at": null
@@ -335,6 +349,10 @@ Body:
 
 Optional query parameter `status`, one status value. Returns a JSON array of work order objects.
 
+### `GET /work-orders/{id}`
+
+Returns one work order object, or 404.
+
 ### Work order actions
 
 | Endpoint | Allowed from | Result |
@@ -346,10 +364,13 @@ Optional query parameter `status`, one status value. Returns a JSON array of wor
 
 - Approve, reject and done take no body.
 - `PATCH` accepts any of `description`, `crew_type` and `defect_ids`. Fields left out do not change.
+- In the prototype, `defect_ids` may only remove defects. An ID not already on the work order fails with 422, and a list that leaves no defects fails with 409. Reason: the agent picks which defects belong together, and a job with no defects means nothing.
 - Each returns the updated work order object, 409 from any other status, and 404 for an unknown ID.
 - Agents only draft work orders. Every action here is a supervisor's.
 
 ### `GET /devices`
+
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
 
 Returns a JSON array, one entry per device, built from the `devices` table and the device's latest heartbeat:
 
@@ -379,6 +400,8 @@ Returns a JSON array, one entry per device, built from the `devices` table and t
 The backend sets `unreachable` to `true` after 5 minutes without a heartbeat (starting value, to be tuned). Reason: the backend decides it once, so every dashboard screen agrees.
 
 ### `GET /coverage`
+
+**Not in the prototype** (decision 93). The shape is kept for after the prototype.
 
 Query parameters: `bbox` (`minLon,minLat,maxLon,maxLat`) and `since` (a timestamp). Returns a GeoJSON FeatureCollection of the road segments inside `bbox`:
 

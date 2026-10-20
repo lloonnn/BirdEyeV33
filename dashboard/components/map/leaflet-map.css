@@ -1,0 +1,46 @@
+/* Dark styling for Leaflet's own controls, from the theme tokens. Plain CSS,
+   not a CSS module: next.config.ts sends every .css file through the Tailwind
+   loader as plain CSS. Classes are prefixed with be-map to stay scoped. */
+
+.be-map {
+  background: var(--background);
+  font-family: inherit;
+}
+
+.be-map .leaflet-control-attribution {
+  background: rgb(10 10 10 / 0.75);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.be-map .leaflet-control-attribution a {
+  color: var(--foreground);
+}
+
+.be-map .leaflet-bar {
+  border: 1px solid var(--border);
+}
+
+.be-map .leaflet-bar a {
+  background: var(--card);
+  color: var(--foreground);
+  border-bottom-color: var(--border);
+}
+
+.be-map .leaflet-bar a:hover {
+  background: var(--accent);
+}
+
+.be-map .be-map-tooltip {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.be-map .be-map-tooltip::before {
+  border-top-color: var(--border);
+}

@@ -1,0 +1,16 @@
+# PostGIS for the demo laptop (decision 34). Tag pinned so every teammate runs the same version.
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_USER: birdeye
+      POSTGRES_PASSWORD: birdeye
+      POSTGRES_DB: birdeye
+    ports:
+      # Localhost only: the database has a default password and only the API on this laptop needs it.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/initdb/01-test-db.sql:/docker-entrypoint-initdb.d/01-test-db.sql:ro
+volumes:
+  db-data:

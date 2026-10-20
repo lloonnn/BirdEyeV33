@@ -160,7 +160,9 @@ fun CameraPreview(modifier: Modifier = Modifier, source: CameraFrameSource? = nu
         val analysis = source?.analysisUseCase()
         val future = ProcessCameraProvider.getInstance(context)
         var provider: ProcessCameraProvider? = null
+        var disposed = false
         future.addListener({
+            if (disposed) return@addListener
             try {
                 provider = future.get().also {
                     val cases = listOfNotNull(useCase, analysis)
@@ -171,8 +173,8 @@ fun CameraPreview(modifier: Modifier = Modifier, source: CameraFrameSource? = nu
             }
         }, ContextCompat.getMainExecutor(context))
         onDispose {
-            analysis?.clearAnalyzer()
-            provider?.unbind(*listOfNotNull(useCase, analysis).toTypedArray())
+            disposed = true
+            provider?.unbind(useCase)
         }
     }
     AndroidView(factory = { previewView }, modifier = modifier)
