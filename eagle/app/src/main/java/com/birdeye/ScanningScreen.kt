@@ -14,6 +14,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -30,6 +37,7 @@ import com.birdeye.ui.theme.PatrolSpacing
 fun ScanningScreen(
     cooling: Boolean,
     defectsToday: Int,
+    reviewCount: Int,
     recordsWaiting: Int,
     uploadsCompleted: Int,
     rejected: Int,
@@ -37,6 +45,10 @@ fun ScanningScreen(
     endShiftReason: EndShiftReason?,
     noGpsSeconds: Int,
     showDebug: Boolean,
+    debugStats: String,
+    debugReason: String,
+    replayTime: String?,
+    replayStatus: String?,
     onEndShift: () -> Unit,
     onToggleCooling: () -> Unit,
     canAddFake: Boolean,
@@ -45,35 +57,44 @@ fun ScanningScreen(
     onToggleMockFails: () -> Unit,
     preview: @Composable (Modifier) -> Unit,
 ) {
+    var debugOpen by rememberSaveable { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         preview(Modifier.fillMaxSize())
+        // Replay preparation can take a while; say so in the middle of the picture.
+        if (replayStatus?.startsWith("Preparing") == true) {
+            Text(replayStatus, Modifier.align(Alignment.Center), style = MaterialTheme.typography.headlineMedium)
+        }
         Column(
             Modifier.fillMaxSize().safeDrawingPadding().padding(PatrolSpacing.md),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Surface(
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
                 // A translucent colour has no matching content colour, so set it, or text falls back to black.
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(PatrolSpacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.md),
-                ) {
+                Column(Modifier.fillMaxWidth().padding(PatrolSpacing.md), verticalArrangement = Arrangement.spacedBy(PatrolSpacing.sm)) {
                     StateLabel(
                         if (cooling) R.string.cooling else R.string.scanning,
-                        Modifier.weight(1f),
                         style = MaterialTheme.typography.headlineMedium,
                         color = if (cooling) BirdEye.status.medium else BirdEye.status.done,
                     )
-                    if (showMock) MockLabel()
+                    // Second row, so the state word never wraps.
+                    if (replayTime != null || showMock) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(PatrolSpacing.md)) {
+                            if (replayTime != null) {
+                                ReplayLabel()
+                                Text(replayTime, style = MaterialTheme.typography.titleMedium)
+                            }
+                            if (showMock) MockLabel()
+                        }
+                    }
                 }
             }
             Surface(
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = if (debugOpen) 0.85f else 0.6f),
                 // A translucent colour has no matching content colour, so set it, or text falls back to black.
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
@@ -93,22 +114,38 @@ fun ScanningScreen(
                         },
                         style = MaterialTheme.typography.bodyLarge,
                     )
+                    // Debug builds only; release builds have no debug section at all.
                     if (showDebug) {
-                        // Records the backend refused (4xx other than 429). Debug only: drivers never act on it.
-                        Text(stringResource(R.string.debug_rejected, rejected), style = MaterialTheme.typography.bodyLarge)
-                        DebugButton(stringResource(R.string.debug_add_fake), onAddFake, enabled = canAddFake)
-                        Row {
-                            DebugButton(
-                                stringResource(if (cooling) R.string.debug_cooling_off else R.string.debug_cooling_on),
-                                onToggleCooling,
-                                Modifier.weight(1f),
-                            )
-                            if (showMock) {
-                                DebugButton(
-                                    stringResource(if (mockFails) R.string.debug_mock_fail_off else R.string.debug_mock_fail_on),
-                                    onToggleMockFails,
-                                    Modifier.weight(1f),
-                                )
+                        TextButton(
+                            onClick = { debugOpen = !debugOpen },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = PatrolSpacing.touchTarget),
+                        ) { Text(if (debugOpen) "Debug  ▴" else "Debug  ▾", style = MaterialTheme.typography.labelLarge) }
+                        if (debugOpen) {
+                            Column(
+                                Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(PatrolSpacing.sm),
+                            ) {
+                                // Records the backend refused (4xx other than 429). Drivers never act on it.
+                                Text(stringResource(R.string.debug_rejected, rejected), style = MaterialTheme.typography.bodyLarge)
+                                Text("Review: $reviewCount", style = MaterialTheme.typography.bodyLarge)
+                                Text(debugStats, style = MaterialTheme.typography.bodyLarge)
+                                Text(debugReason, style = MaterialTheme.typography.bodyLarge)
+                                replayStatus?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                                DebugButton(stringResource(R.string.debug_add_fake), onAddFake, enabled = canAddFake)
+                                Row {
+                                    DebugButton(
+                                        stringResource(if (cooling) R.string.debug_cooling_off else R.string.debug_cooling_on),
+                                        onToggleCooling,
+                                        Modifier.weight(1f),
+                                    )
+                                    if (showMock) {
+                                        DebugButton(
+                                            stringResource(if (mockFails) R.string.debug_mock_fail_off else R.string.debug_mock_fail_on),
+                                            onToggleMockFails,
+                                            Modifier.weight(1f),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -133,7 +170,7 @@ private fun DebugButton(label: String, onClick: () -> Unit, modifier: Modifier =
 internal fun ScanningPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = false, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true,
+            cooling = false, defectsToday = 3, reviewCount = 2, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = EndShiftReason.Still, noGpsSeconds = 30, showDebug = true, debugStats = "GPU 42 ms, 3.0 fps", debugReason = "top pothole 0.62: review band", replayTime = null, replayStatus = null,
             onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }
@@ -144,7 +181,7 @@ internal fun ScanningPreview() {
 internal fun CoolingPreview() {
     BirdEyeTheme(darkTheme = true) {
         ScanningScreen(
-            cooling = true, defectsToday = 3, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = null, noGpsSeconds = 30, showDebug = false,
+            cooling = true, defectsToday = 3, reviewCount = 2, recordsWaiting = 1, uploadsCompleted = 2, rejected = 0, showMock = true, endShiftReason = null, noGpsSeconds = 30, showDebug = false, debugStats = "", debugReason = "", replayTime = null, replayStatus = null,
             onEndShift = {}, onToggleCooling = {}, canAddFake = true, onAddFake = {}, mockFails = false, onToggleMockFails = {}, preview = { CameraPreview(it) },
         )
     }

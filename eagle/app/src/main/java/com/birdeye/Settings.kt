@@ -23,6 +23,8 @@ data class ConfigV0(
     val uploadIntervalS: Double,
     val duplicateDistanceM: Double,
     val duplicateTimeS: Double,
+    /** Not in the contract yet: NMS overlap limit (starting value). */
+    val nmsIou: Double = 0.7,
 )
 
 /** App-only starting values; not contract fields. Camera height is per phone, in local.properties. */
@@ -39,6 +41,16 @@ data class AppSettings(
     val uploadMaxRecords: Int,
     val uploadBackoffS: Double,
     val logKeepDays: Double,
+    val cropMarginFrac: Double,
+    val jpegQuality: Int,
+    // Replay mode only (birdeye.replay=true). INVENTED values, not from a real road or phone.
+    val replayStartLat: Double,
+    val replayStartLon: Double,
+    val replayHeadingDeg: Double,
+    val replaySpeedKmh: Double,
+    val replayAccuracyM: Double,
+    val replayLoop: Boolean,
+    val replayTiltDownDeg: Double,
 )
 
 object Settings {
@@ -59,6 +71,7 @@ object Settings {
             uploadIntervalS = getDouble("upload_interval_s"),
             duplicateDistanceM = getDouble("duplicate_distance_m"),
             duplicateTimeS = getDouble("duplicate_time_s"),
+            nmsIou = optDouble("nms_iou", 0.7),
         )
     }
 
@@ -76,6 +89,15 @@ object Settings {
             uploadMaxRecords = getInt("upload_max_records"),
             uploadBackoffS = getDouble("upload_backoff_s"),
             logKeepDays = getDouble("log_keep_days"),
+            cropMarginFrac = getDouble("crop_margin_frac"),
+            jpegQuality = getInt("jpeg_quality"),
+            replayStartLat = getDouble("replay_start_lat"),
+            replayStartLon = getDouble("replay_start_lon"),
+            replayHeadingDeg = getDouble("replay_heading_deg"),
+            replaySpeedKmh = getDouble("replay_speed_kmh"),
+            replayAccuracyM = getDouble("replay_accuracy_m"),
+            replayLoop = getBoolean("replay_loop"),
+            replayTiltDownDeg = getDouble("replay_tilt_down_deg"),
         )
     }
 }

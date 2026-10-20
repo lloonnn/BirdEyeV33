@@ -12,8 +12,6 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.UUID
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * Debug builds only: makes an invented pothole record near the current position, with a grey
@@ -46,21 +44,12 @@ object FakeDetection {
                 speedKmh = if (fix.hasSpeed()) fix.speed * 3.6 else 0.0,
             ),
             distanceAheadM = AHEAD_M,
-            defectPoint = ahead(fix.latitude, fix.longitude, heading, AHEAD_M),
+            defectPoint = offsetPoint(fix.latitude, fix.longitude, heading, AHEAD_M),
             modelVersion = MODEL_VERSION,
             urgent = false,
             cropFile = "$clientId.jpg",
         )
         return record to mockCrop()
-    }
-
-    /** The vehicle position moved d metres along the heading (architecture section 3, distance ahead). */
-    private fun ahead(lat: Double, lon: Double, headingDeg: Double, d: Double): LatLon {
-        val theta = Math.toRadians(headingDeg)
-        return LatLon(
-            lat = lat + d * cos(theta) / 111_320.0,
-            lon = lon + d * sin(theta) / (111_320.0 * cos(Math.toRadians(lat))),
-        )
     }
 
     private fun mockCrop(): ByteArray {

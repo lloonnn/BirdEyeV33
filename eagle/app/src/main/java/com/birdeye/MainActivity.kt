@@ -29,8 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import com.birdeye.ui.theme.BirdEyeTheme
-import java.time.LocalDate
-import java.time.ZoneId
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -81,13 +79,17 @@ fun BirdEyeApp(shift: ShiftViewModel) {
         }
     }
     val preview: @Composable (Modifier) -> Unit = { CameraPreview(it) }
+    val stats by shift.pipeline.stats.collectAsState()
+    val videoMs by shift.frameSource.videoTimeMs.collectAsState()
+    val replayStatus by shift.frameSource.status.collectAsState()
+    val replayFrame by shift.frameSource.displayFrame.collectAsState()
 
-    // Counts from the Room queue and its log.
-    val todayStartMs = remember(now) { LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
-    val defectsToday by remember(todayStartMs) { shift.queue.foundSince(todayStartMs) }.collectAsState(0)
+    // Counts from the Room queue and its log. "Defects today" on Scanning and "Defects found" on End of shift
+    // are both this shift's kept records; shiftStartWallMs is reset at Start shift, so both start at 0.
     val recordsWaiting by remember { shift.queue.pendingCount() }.collectAsState(0)
     val rejected by remember { shift.queue.rejectedCount() }.collectAsState(0)
     val foundThisShift by remember(shift.shiftStartWallMs) { shift.queue.foundSince(shift.shiftStartWallMs) }.collectAsState(0)
+    val reviewThisShift by remember(shift.shiftStartWallMs) { shift.queue.reviewSince(shift.shiftStartWallMs) }.collectAsState(0)
     val uploadedThisShift by remember(shift.shiftStartWallMs) { shift.queue.uploadedSince(shift.shiftStartWallMs) }.collectAsState(0)
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -116,7 +118,11 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                             ),
                         )
                     },
-                    onStart = { tilt?.let { shift.startShift(it.pitchDownDeg) } },
+                    onStart = {
+                        if (shift.replay) shift.startShift(shift.settings.replayTiltDownDeg.toFloat())
+                        else tilt?.let { shift.startShift(it.pitchDownDeg) }
+                    },
+                    replay = shift.replay,
                     preview = preview,
                 )
             }
@@ -127,7 +133,8 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                 BackHandler {}
                 ScanningScreen(
                     cooling = shift.cooling,
-                    defectsToday = defectsToday,
+                    defectsToday = foundThisShift,
+                    reviewCount = reviewThisShift,
                     recordsWaiting = recordsWaiting,
                     uploadsCompleted = uploadedThisShift,
                     rejected = rejected,
@@ -136,13 +143,28 @@ fun BirdEyeApp(shift: ShiftViewModel) {
                     noGpsSeconds = shift.settings.endShiftNoFixS.toInt(),
                     // Debug builds only. The demo uses a release build, so the toggle is hidden there.
                     showDebug = BuildConfig.DEBUG,
+                    replayTime = if (shift.replay) "%d:%02d".format((videoMs ?: 0) / 60000, (videoMs ?: 0) / 1000 % 60) else null,
+                    debugReason = stats.top?.let { "top ${it.first.wire} %.2f: ${stats.reason ?: "..."}".format(it.second) } ?: "no frame yet",
+                    debugStats = stats.error ?: "${stats.backend ?: "model loading"}: %.0f ms, %.1f fps".format(stats.inferenceMs, stats.fps),
                     onEndShift = { shift.endShift() },
                     onToggleCooling = { shift.cooling = !shift.cooling },
                     canAddFake = shift.lastFix != null,
                     onAddFake = { shift.addFakeDetection() },
                     mockFails = shift.mockFails,
                     onToggleMockFails = { shift.toggleMockFails() },
-                    preview = preview,
+                    replayStatus = replayStatus,
+                    preview = { modifier ->
+                        // Replay has no camera: the frames come from the video, with boxes always on.
+                        Box(modifier) {
+                            if (shift.replay) {
+                                ReplayFrame(replayFrame, Modifier.fillMaxSize())
+                                DetectionBoxes(stats, shift.config.bandSaveMin, fill = false, Modifier.fillMaxSize())
+                            } else {
+                                CameraPreview(Modifier.fillMaxSize(), source = shift.frameSource as? CameraFrameSource)
+                                if (BuildConfig.DEBUG) DetectionBoxes(stats, shift.config.bandSaveMin, fill = true, Modifier.fillMaxSize())
+                            }
+                        }
+                    },
                 )
             }
 

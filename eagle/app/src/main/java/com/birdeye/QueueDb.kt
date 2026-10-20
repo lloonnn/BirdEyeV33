@@ -1,6 +1,7 @@
 package com.birdeye
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -9,6 +10,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** Local queue state. A row leaves the queue (is deleted) once the backend has it. */
@@ -108,6 +111,7 @@ data class DetectionLogEntry(
     val lon: Double,
     val confidence: Double,
     val uploadedAtMs: Long?, // null until the backend has it
+    @ColumnInfo(defaultValue = "save") val band: String = "save", // "save" or "review"
 )
 
 @Dao
@@ -154,19 +158,30 @@ interface QueueDao {
     @Query("SELECT COUNT(*) FROM detections WHERE queueState = 'Pending'")
     fun pendingCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM detection_log WHERE capturedAtMs >= :sinceMs")
+    /** Save band records kept since the time. Review band records are counted separately. */
+    @Query("SELECT COUNT(*) FROM detection_log WHERE capturedAtMs >= :sinceMs AND band = 'save'")
     fun foundSince(sinceMs: Long): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM detection_log WHERE capturedAtMs >= :sinceMs AND band = 'review'")
+    fun reviewSince(sinceMs: Long): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM detection_log WHERE uploadedAtMs >= :sinceMs")
     fun uploadedSince(sinceMs: Long): Flow<Int>
 }
 
-@Database(entities = [QueuedDetection::class, DetectionLogEntry::class], version = 2, exportSchema = false)
+@Database(entities = [QueuedDetection::class, DetectionLogEntry::class], version = 3, exportSchema = false)
 abstract class QueueDb : RoomDatabase() {
     abstract fun dao(): QueueDao
 
     companion object {
         const val NAME = "queue.db"
+
+        /** Version 3 adds the band to the log. Older entries were all save band. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE detection_log ADD COLUMN band TEXT NOT NULL DEFAULT 'save'")
+            }
+        }
 
         @Volatile private var instance: QueueDb? = null
 
@@ -174,6 +189,7 @@ abstract class QueueDb : RoomDatabase() {
             instance ?: Room.databaseBuilder(context.applicationContext, QueueDb::class.java, NAME)
                 // Version 2 changed bbox from pixels to 0 to 1 floats. The queue held only invented
                 // data, so dropping it is safe.
+                .addMigrations(MIGRATION_2_3)
                 .fallbackToDestructiveMigrationFrom(true, 1)
                 .build()
                 .also { instance = it }

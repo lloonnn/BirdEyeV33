@@ -1,14 +1,16 @@
 {
-  "model_version": "none",
-  "model_sha256": "",
+  "model_version": "m-2026-10-19_quick",
+  "model_sha256": "181b71576a1f74fc1948da767247f9adf2d92afc488b821c4b9d72d45ee78f95",
   "frame_rate": 3,
   "input_size_px": 640,
-  "band_save_min": 0.8,
-  "band_review_min": 0.3,
+  "band_save_min": 0.15,
+  "band_review_min": 0.1,
   "crop_long_side_px": 640,
   "gps_interval_s": 1,
   "heartbeat_interval_s": 60,
   "upload_interval_s": 900,
   "duplicate_distance_m": 5,
-  "duplicate_time_s": 5
+  "duplicate_time_s": 5,
+  "nms_iou": 0.7,
+  "_note": "All values are starting values. band_save_min and band_review_min are TEST values for the rough quick model m-2026-10-19_quick, not demo values. nms_iou is not in the contract yet."
 }

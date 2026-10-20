@@ -35,8 +35,7 @@ data class DetectionRecord(
     val confidence: Double, // confidence
     val band: Band, // band
     // bbox: [x1, y1, x2, y2], floats 0 to 1 against the full camera frame, origin top left (15 Oct).
-    // TODO phase 3: the detector converts model output to this format and undoes letterbox padding.
-    // No detector interface exists yet; move this TODO there when it lands.
+    // Decoder.kt produces this format and undoes the letterbox padding.
     val bbox: List<Float>,
     val vehicle: Vehicle, // vehicle
     val distanceAheadM: Double, // distance_ahead_m
@@ -48,7 +47,7 @@ data class DetectionRecord(
 
 /**
  * `POST /detections/batch` body: the `records` part plus one file part per crop, keyed by part name
- * (the record's crop_file). The real client turns this into multipart/form-data in phase 3.
+ * (the record's crop_file). RealBirdEyeApi turns this into multipart/form-data.
  */
 data class DetectionBatch(val records: List<DetectionRecord>, val crops: Map<String, File>)
 
@@ -96,5 +95,7 @@ data class TrackUpload(
  * errors, 5xx and 429 are retried; any other 4xx marks the batch rejected.
  */
 class ApiError(val httpStatus: Int?, message: String) : Exception(message) {
-    val retryable: Boolean get() = httpStatus == null || httpStatus >= 500 || httpStatus == 429
+    // A 2xx whose body could not be read is retried too: the server may have stored the batch, and it
+    // deduplicates by client_id, so a retry is safe.
+    val retryable: Boolean get() = httpStatus == null || httpStatus >= 500 || httpStatus == 429 || httpStatus in 200..299
 }

@@ -10,5 +10,15 @@
   "scanning_brightness": 0.1,
   "upload_max_records": 50,
   "upload_backoff_s": 30,
-  "log_keep_days": 2
+  "log_keep_days": 2,
+  "crop_margin_frac": 0.2,
+  "jpeg_quality": 85,
+  "replay_start_lat": 3.139,
+  "replay_start_lon": 101.6869,
+  "replay_heading_deg": 90,
+  "replay_speed_kmh": 30,
+  "replay_accuracy_m": 5,
+  "replay_loop": true,
+  "replay_tilt_down_deg": 8,
+  "_note": "replay_* values are INVENTED, used only when birdeye.replay=true: the fake GPS line when replay_track.json is missing, and the camera tilt in place of the mount check."
 }

@@ -1,3 +1,4 @@
+import java.net.URI
 import java.util.Properties
 
 plugins {
@@ -20,12 +21,49 @@ val cameraHeightSetting = localProperties.getProperty("birdeye.cameraHeightM")?.
     ?.takeIf { it > 0.0 }
 
 // Which backend the app talks to (key birdeye.api): "mock" (default) or "real". Only Api.kt reads the
-// resulting BuildConfig field. The real client is phase 3, so "real" stops the build until then.
+// resulting BuildConfig field.
 val birdEyeApi = localProperties.getProperty("birdeye.api")?.trim() ?: "mock"
+val birdEyeBaseUrl = localProperties.getProperty("birdeye.baseUrl")?.trim() ?: ""
+// Replay mode (key birdeye.replay=true): a recorded video and fake GPS replace the camera and GPS. Works in release builds too.
+// It may be combined with api=real: the full-chain test sends replayed detections to the real backend.
+val birdEyeReplay = localProperties.getProperty("birdeye.replay")?.trim()?.lowercase() == "true"
 when (birdEyeApi) {
     "mock" -> Unit
-    "real" -> throw GradleException("birdeye.api=real: the real backend client is not built yet (phase 3). Use birdeye.api=mock.")
+    "real" -> if (birdEyeBaseUrl.isEmpty()) throw GradleException("birdeye.api=real needs birdeye.baseUrl in local.properties, for example http://192.168.1.10:8000")
     else -> throw GradleException("birdeye.api must be mock or real, not '$birdEyeApi'.")
+}
+// Device id sent with every record (key birdeye.deviceId). The real backend needs one per phone, so a
+// shared default would merge devices; mock mode ignores it.
+val birdEyeDeviceId = localProperties.getProperty("birdeye.deviceId")?.trim()?.takeIf { it.isNotEmpty() }
+    ?: if (birdEyeApi == "real") throw GradleException("birdeye.api=real needs a unique birdeye.deviceId in local.properties, for example car-01") else "eagle-dev"
+// Cleartext HTTP is allowed in debug builds only, and only to the host of birdeye.baseUrl. Release builds
+// block it, so a release build must use an https baseUrl.
+val birdEyeCleartextHost: String = if (birdEyeBaseUrl.startsWith("http://")) URI(birdEyeBaseUrl).host ?: "" else ""
+val releaseBlockedBaseUrl = birdEyeApi == "real" && birdEyeBaseUrl.startsWith("http://")
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        if (releaseBlockedBaseUrl) {
+            throw GradleException("Release builds block cleartext HTTP. Use an https birdeye.baseUrl for release, or build debug.")
+        }
+    }
+}
+
+/** Writes the debug network security config: cleartext blocked everywhere except the laptop host. */
+abstract class GenerateNetworkConfig : DefaultTask() {
+    @get:Input abstract val cleartextHost: Property<String>
+
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    @TaskAction fun write() {
+        val domain = cleartextHost.get().takeIf { it.isNotEmpty() }
+            ?.let { "\n    <domain-config cleartextTrafficPermitted=\"true\">\n        <domain includeSubdomains=\"false\">$it</domain>\n    </domain-config>" } ?: ""
+        val dir = outputDir.get().asFile.resolve("xml").apply { mkdirs() }
+        dir.resolve("network_security_config.xml").writeText(
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
+                "<!-- Generated for debug builds from birdeye.baseUrl. Cleartext HTTP only to that host. -->\n" +
+                "<network-security-config>\n    <base-config cleartextTrafficPermitted=\"false\" />$domain\n</network-security-config>\n",
+        )
+    }
 }
 
 android {
@@ -46,6 +84,9 @@ android {
         buildConfigField("double", "CAMERA_HEIGHT_M", (cameraHeightSetting ?: 1.0).toString())
         buildConfigField("boolean", "CAMERA_HEIGHT_SET", (cameraHeightSetting != null).toString())
         buildConfigField("String", "BIRDEYE_API", "\"$birdEyeApi\"")
+        buildConfigField("boolean", "REPLAY", birdEyeReplay.toString())
+        buildConfigField("String", "DEVICE_ID", "\"$birdEyeDeviceId\"")
+        buildConfigField("String", "BIRDEYE_BASE_URL", "\"$birdEyeBaseUrl\"")
     }
 
     buildTypes {
@@ -62,9 +103,22 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    // The model must stay uncompressed so LiteRT can memory-map it.
+    androidResources {
+        noCompress += "tflite"
+    }
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        val generate = tasks.register<GenerateNetworkConfig>("generate${variant.name.replaceFirstChar { it.uppercase() }}NetworkConfig") {
+            cleartextHost.set(birdEyeCleartextHost)
+        }
+        variant.sources.res?.addGeneratedSourceDirectory(generate, GenerateNetworkConfig::outputDir)
     }
 }
 
@@ -85,6 +139,14 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.litert)
+    implementation(libs.litert.gpu)
+    // litert-support 1.4.2 clashes with its own -api artifact (same namespace), so the api one is excluded.
+    implementation(libs.litert.support) {
+        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    }
+    implementation(libs.okhttp)
+    implementation(libs.kotlinx.serialization.json)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

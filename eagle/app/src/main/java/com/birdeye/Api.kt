@@ -12,8 +12,8 @@ object Api {
     /** True while the app talks to the mock. Screens show the MOCK label while this is true. */
     val isMock: Boolean = BuildConfig.BIRDEYE_API == "mock"
 
-    /** Device id sent with every record. Mock ids start with "mock-" (plan rule 3); real ids come in phase 3. */
-    val deviceId: String = if (isMock) "mock-car-01" else error("birdeye.api=real: device id is phase 3")
+    /** Device id sent with every record. Mock ids start with "mock-" (plan rule 3); real ids are birdeye.deviceId. */
+    val deviceId: String = if (isMock) "mock-car-01" else BuildConfig.DEVICE_ID
 
     @Volatile private var instance: BirdEyeApi? = null
 
@@ -23,8 +23,8 @@ object Api {
 
     private fun create(context: Context): BirdEyeApi = when (BuildConfig.BIRDEYE_API) {
         "mock" -> MockBirdEyeApi(failUploads = { mockFails(context) }, log = { Log.i("BirdEye", it) })
-        // The build already rejects "real" until phase 3; this is a second guard.
-        else -> error("birdeye.api=${BuildConfig.BIRDEYE_API}: the real backend client is not built yet (phase 3)")
+        "real" -> RealBirdEyeApi(BuildConfig.BIRDEYE_BASE_URL, log = { Log.i("BirdEye", it) })
+        else -> error("birdeye.api=${BuildConfig.BIRDEYE_API} must be mock or real")
     }
 
     // Debug setting for the mock, kept in preferences so the upload worker sees the same value.
