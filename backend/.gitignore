@@ -4,3 +4,6 @@ data/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Test fixtures are committed
+!tests/data/

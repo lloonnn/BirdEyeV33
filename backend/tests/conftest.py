@@ -23,6 +23,7 @@ from bird_eye.settings import Settings
 
 BACKEND = Path(__file__).resolve().parent.parent
 DATA = Path(__file__).resolve().parent / "data"
+# crop.jpg is a synthetic 64x64 gradient test image, not a real photo.
 CROP = (DATA / "crop.jpg").read_bytes()
 MYT = ZoneInfo("Asia/Kuala_Lumpur")
 FROZEN_NOW = datetime(2026, 10, 15, 10, 0, tzinfo=MYT)
