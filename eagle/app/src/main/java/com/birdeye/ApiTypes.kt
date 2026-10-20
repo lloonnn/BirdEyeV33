@@ -95,5 +95,7 @@ data class TrackUpload(
  * errors, 5xx and 429 are retried; any other 4xx marks the batch rejected.
  */
 class ApiError(val httpStatus: Int?, message: String) : Exception(message) {
-    val retryable: Boolean get() = httpStatus == null || httpStatus >= 500 || httpStatus == 429
+    // A 2xx whose body could not be read is retried too: the server may have stored the batch, and it
+    // deduplicates by client_id, so a retry is safe.
+    val retryable: Boolean get() = httpStatus == null || httpStatus >= 500 || httpStatus == 429 || httpStatus in 200..299
 }

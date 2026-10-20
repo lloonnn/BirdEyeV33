@@ -53,7 +53,7 @@ class LiteRtDetector(
                 made = Interpreter(model, Interpreter.Options().addDelegate(delegate))
                 gpu = delegate
                 used = "GPU"
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 delegate.close()
                 throw e
             }

@@ -12,5 +12,5 @@ birdeye.baseUrl=http://192.168.1.10:8000
 # Camera height above the road in metres, measured in the mount. Default 1.0 with a warning.
 birdeye.cameraHeightM=1.2
 
-# Optional. Default eagle-dev.
+# Required when birdeye.api=real: a unique id per phone. Ignored by mock.
 birdeye.deviceId=car-01

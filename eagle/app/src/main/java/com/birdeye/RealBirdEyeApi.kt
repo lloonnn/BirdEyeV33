@@ -31,16 +31,18 @@ class RealBirdEyeApi(
     private val json = "application/json".toMediaType()
     private val jpeg = "image/jpeg".toMediaType()
 
-    override suspend fun getConfig(): ConfigV0 =
-        parseConfig(call(Request.Builder().url("$base/config").get().build()).let { Json.parseToJsonElement(it).jsonObject })
+    override suspend fun getConfig(): ConfigV0 {
+        val reply = call(Request.Builder().url("$base/config").get().build())
+        return parse(reply) { parseConfig(Json.parseToJsonElement(reply.text).jsonObject) }
+    }
 
     override suspend fun uploadDetections(batch: DetectionBatch): BatchResult {
         val records = JsonArray(batch.records.map { it.toJson() }).toString()
         val body = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("records", null, records.toRequestBody(json))
         for ((part, file) in batch.crops) body.addFormDataPart(part, part, file.asRequestBody(jpeg))
-        val text = call(Request.Builder().url("$base/detections/batch").post(body.build()).build())
-        return parseBatchResult(Json.parseToJsonElement(text).jsonObject).also {
+        val reply = call(Request.Builder().url("$base/detections/batch").post(body.build()).build())
+        return parse(reply) { parseBatchResult(Json.parseToJsonElement(reply.text).jsonObject) }.also {
             log("POST /detections/batch: accepted ${it.accepted}, duplicates ${it.duplicates}")
         }
     }
@@ -56,15 +58,25 @@ class RealBirdEyeApi(
     private fun postJson(path: String, body: String): Request =
         Request.Builder().url("$base$path").post(body.toRequestBody(json)).build()
 
-    /** Runs the request off the caller's thread. Returns the body text of a 2xx answer. */
-    private suspend fun call(request: Request): String = withContext(Dispatchers.IO) {
+    /** A 2xx answer. [what] names the request for error messages. */
+    private class Reply(val what: String, val code: Int, val text: String)
+
+    /** Reads a 2xx body. A body that is not the expected JSON becomes an [ApiError] with the endpoint and a snippet. */
+    private fun <T> parse(reply: Reply, read: () -> T): T = try {
+        read()
+    } catch (e: Exception) { // bad JSON, a missing field or a wrong type
+        throw ApiError(reply.code, "${reply.what}: unreadable response (${e.message}): ${reply.text.take(300)}")
+    }
+
+    /** Runs the request off the caller's thread. Returns the 2xx answer. */
+    private suspend fun call(request: Request): Reply = withContext(Dispatchers.IO) {
         try {
             client.newCall(request).execute().use { response ->
                 val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw ApiError(response.code, "${request.method} ${request.url.encodedPath}: ${response.code} ${text.take(300)}")
                 }
-                text
+                Reply("${request.method} ${request.url.encodedPath}", response.code, text)
             }
         } catch (e: IOException) {
             throw ApiError(null, "${request.method} ${request.url.encodedPath}: ${e.message}")

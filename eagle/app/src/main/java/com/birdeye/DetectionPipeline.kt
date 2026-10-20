@@ -30,7 +30,7 @@ data class PipelineStats(val backend: String? = null, val inferenceMs: Double = 
 
 /**
  * Frames from a [FrameSource] to queued records: sample, detect, crop, locate, queue. Video is never stored: a frame
- * lives only inside [process] and is dropped at the end. Detection runs on the source's own thread;
+ * lives only inside [process] and is dropped at the end. Detection runs on one inference thread;
  * both bands go to the queue through the duplicate filter, which treats each band separately.
  */
 class DetectionPipeline(
@@ -43,6 +43,7 @@ class DetectionPipeline(
     private val lastFix: () -> Location?,
 ) {
     private val appContext = context.applicationContext
+    private val inference = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "birdeye-inference") }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _stats = MutableStateFlow(PipelineStats())
     val stats: StateFlow<PipelineStats> = _stats
@@ -52,12 +53,23 @@ class DetectionPipeline(
     private var avgInferenceMs = 0.0
     private val doneAtMs = ArrayDeque<Long>()
 
-    /** Starts pulling frames from the source. Each frame is processed on the source's thread, one at a time. */
-    fun start() = source.start(::process)
+    /**
+     * Starts pulling frames from the source. Every frame is processed on the one inference thread, so the
+     * detector (and its GPU delegate, which must stay on the thread that made it) is only used there. The
+     * source's thread waits for the result, because it recycles the frame when the call returns.
+     */
+    fun start() = source.start { frame ->
+        try {
+            inference.submit { process(frame) }.get()
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt() // stop() was called; let the source's loop see it
+        } catch (e: java.util.concurrent.ExecutionException) {
+            Log.e("BirdEye", "Frame failed", e.cause ?: e)
+        }
+    }
 
     fun stop() = source.stop()
 
-    @Synchronized
     private fun process(frame: Bitmap) {
         val det = detector ?: run {
             if (loadFailed) return
@@ -177,17 +189,20 @@ class DetectionPipeline(
         val out = if (scale < 1f) Bitmap.createScaledBitmap(crop, max(1, (cropW * scale).roundToInt()), max(1, (cropH * scale).roundToInt()), true) else crop
         return ByteArrayOutputStream().use {
             out.compress(Bitmap.CompressFormat.JPEG, settings.jpegQuality, it)
+            // createBitmap can hand back the frame itself when the box covers all of it; never recycle that.
             if (out !== crop) out.recycle()
-            crop.recycle()
+            if (crop !== frame) crop.recycle()
             it.toByteArray()
         }
     }
 
-    @Synchronized
     fun close() {
         source.stop()
-        detector?.close()
-        detector = null
+        inference.execute {
+            detector?.close()
+            detector = null
+        }
+        inference.shutdown()
     }
 
     companion object {
