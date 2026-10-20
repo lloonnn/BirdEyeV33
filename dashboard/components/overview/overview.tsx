@@ -12,12 +12,12 @@ import { toPin } from "@/components/overview/defect-pins"
 import { MapLegend } from "@/components/overview/map-legend"
 import { MostUrgent } from "@/components/overview/most-urgent"
 import { Stepper } from "@/components/overview/stepper"
-import { type Stage, defaultStage, isStage } from "@/components/overview/summary"
+import { type Stage, defaultStage, isStage, stages } from "@/components/overview/summary"
 import { SummaryCard } from "@/components/overview/summary-card"
 import { type DefectsState, useDefects } from "@/components/overview/use-defects"
-import { getDefect } from "@/lib/api"
+import { getDefect, inMockMode } from "@/lib/api"
 import { ApiError, type Bbox, type Defect, type DefectsQuery } from "@/lib/api-types"
-import { areaBounds, defectsDefaultLimit, defectsReloadDebounceMs, fixFirstCount } from "@/lib/config"
+import { areaBounds, defectsDefaultLimit, defectsReloadDebounceMs, fixFirstCount, regionBounds } from "@/lib/config"
 import { formatClock } from "@/lib/time"
 
 // One query per stage over the whole pilot area, most urgent first. Its length
@@ -26,6 +26,19 @@ const stageQuery = (status: Stage): DefectsQuery => ({ bbox: areaBounds, status:
 const detectedQuery = stageQuery("detected")
 const verifiedQuery = stageQuery("verified")
 const scheduledQuery = stageQuery("scheduled")
+// Real mode, first load: the most urgent defects anywhere in the region, to
+// fit the map to where the defects really are.
+const firstFitQuery: DefectsQuery = {
+  bbox: regionBounds,
+  status: stages,
+  sort: "urgency_desc",
+  limit: defectsDefaultLimit,
+}
+// Nothing found (or the call failed): fit to the pilot area instead.
+const areaCorners: [number, number][] = [
+  [areaBounds[1], areaBounds[0]],
+  [areaBounds[3], areaBounds[2]],
+]
 
 function failureText(error: unknown, lastAt: Date | null): string {
   const head =
@@ -89,6 +102,8 @@ export function Overview() {
   const scheduled = useDefects(scheduledQuery, refreshKey)
   const byStage: Record<Stage, DefectsState> = { detected, verified, scheduled }
   const current = byStage[stage]
+  // Real mode only; mock mode keeps fitting to the selected stage's defects.
+  const first = useDefects(inMockMode ? null : firstFitQuery, refreshKey)
 
   // Only the selected stage's pins. The filter also covers the moment after a
   // stage change, while the map still holds the last response.
@@ -106,15 +121,22 @@ export function Overview() {
     [detected.defects, verified.defects, scheduled.defects]
   )
 
-  // First load: fit the map to every defect of the first stage, kept clear of
+  // First load: fit the map to the defects found across the region (real mode)
+  // or to the first stage (mock mode), kept clear of
   // the left column (16 + 320 + 16 px), the top bar (76), the right panel's
   // space (16 + 352 + 16) and the stepper (16 + 44 + 16). Skipped when a
   // ?defect= link asks for one defect.
   const fit = useMemo<MapFit | null>(() => {
-    if (linkedId || !current.defects) return null
-    const points = current.defects.map((d): [number, number] => [d.lat, d.lon])
-    return { points, padding: [76, 384, 76, 352] }
-  }, [current.defects, linkedId])
+    if (linkedId) return null
+    const padding: MapFit["padding"] = [76, 384, 76, 352]
+    if (inMockMode) {
+      if (!current.defects) return null
+      return { points: current.defects.map((d): [number, number] => [d.lat, d.lon]), padding }
+    }
+    if (!first.defects) return first.error ? { points: areaCorners, padding } : null
+    if (first.defects.length === 0) return { points: areaCorners, padding }
+    return { points: first.defects.map((d): [number, number] => [d.lat, d.lon]), padding }
+  }, [current.defects, first.defects, first.error, linkedId])
 
   const onPinClick = useCallback(
     (id: number) => setSelected(shown.find((d) => d.id === id) ?? null),

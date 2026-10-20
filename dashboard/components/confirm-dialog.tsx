@@ -2,8 +2,8 @@
 
 import { useRef } from "react"
 
+import { CropImage } from "@/components/crop-image"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
 
 type Props = {
   open: boolean
@@ -54,19 +54,7 @@ export function ConfirmDialog({
             className="flex flex-col gap-4"
           >
             <DialogTitle>{title}</DialogTitle>
-            {cropAlt === undefined ? null : cropSrc ? (
-              // The backend's crop host is not known at build time, so next/image cannot be configured for it.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={cropSrc} alt={cropAlt} className="aspect-video w-full rounded-md object-cover" />
-            ) : (
-              <div
-                className={cn(
-                  "flex aspect-video w-full items-center justify-center rounded-md border border-dashed border-border bg-muted text-xs text-muted-foreground"
-                )}
-              >
-                Invented crop
-              </div>
-            )}
+            {cropAlt === undefined ? null : <CropImage src={cropSrc ?? null} alt={cropAlt} className="rounded-md" />}
             <DialogDescription>{description}</DialogDescription>
             {children}
             <DialogFooter>
