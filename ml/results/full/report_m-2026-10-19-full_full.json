@@ -1,0 +1,217 @@
+{
+  "model_version": "m-2026-10-19-full",
+  "run_mode": "full",
+  "weights": "trained: /content/drive/MyDrive/birdeye_ml/runs/full/weights/best.pt",
+  "epochs_completed": 30,
+  "epochs_planned": 30,
+  "imgsz": 640,
+  "class_order": [
+    "pothole",
+    "crack"
+  ],
+  "excluded_countries": [
+    "China_Drone"
+  ],
+  "settings_hash": "bdb7a279",
+  "cache_file": "rdd2022_yolo_bdb7a279.tar",
+  "split_file": "split_bdb7a279.json",
+  "map50_per_class": {
+    "pothole": 0.4244516008884023,
+    "crack": 0.5576432484107692
+  },
+  "map50": 0.49104742464958573,
+  "map50_95": 0.23567915579180315,
+  "split_method": "blocks100",
+  "metric_note": "Measured on held-out blocks of RDD2022 train (blocks of 100 consecutive images per country, about 10%), not an official test split; the RDD2022 test split has no labels. No accuracy is claimed for Malaysian roads.",
+  "train_counts": {
+    "images": 32284,
+    "background_images": 12724,
+    "boxes": {
+      "pothole": 5834,
+      "crack": 40690
+    }
+  },
+  "val_counts": {
+    "images": 3700,
+    "background_images": 1412,
+    "boxes": {
+      "pothole": 624,
+      "crack": 4790
+    }
+  },
+  "tflite_path": "/content/drive/MyDrive/birdeye_ml/exports/birdeye_m-2026-10-19-full_full_float16.tflite",
+  "tflite_size_mb": 5.373,
+  "tflite_input": {
+    "shape": [
+      1,
+      640,
+      640,
+      3
+    ],
+    "dtype": "float32"
+  },
+  "tflite_output": {
+    "shape": [
+      1,
+      6,
+      8400
+    ],
+    "dtype": "float32"
+  },
+  "tflite_conventions": {
+    "input": {
+      "shape": [
+        1,
+        640,
+        640,
+        3
+      ],
+      "dtype": "float32",
+      "layout": "NHWC",
+      "channel_order": "RGB",
+      "pixel_range": "0-1",
+      "decided_from_data": true,
+      "evidence_mean_score_gap": {
+        "RGB 0-1": 0.00028,
+        "BGR 0-1": 0.03331,
+        "RGB 0-255": 0.30964,
+        "BGR 0-255": 0.29683
+      }
+    },
+    "output": {
+      "shape": [
+        1,
+        6,
+        8400
+      ],
+      "dtype": "float32",
+      "layout": "channels_first [1, 4+classes, anchors]",
+      "anchors": 8400,
+      "box_format": "centre x, centre y, width, height",
+      "box_format_decided_from_data": true,
+      "box_iou_evidence": {
+        "xywh": 0.9997,
+        "xyxy": 0.0
+      },
+      "box_values": "pixels of the 640 x 640 input",
+      "box_max_value_over_images": 644.774,
+      "scores": "probabilities (0 to 1)",
+      "score_min": 0.0,
+      "score_max": 0.73824
+    },
+    "preprocessing": {
+      "source": "Ultralytics 8.4.182 LetterBox (data/augment.py), the rule predict() uses; centre=True, pad 114, INTER_LINEAR are its defaults",
+      "scale": "640 / max(width, height)",
+      "scale_up_allowed": true,
+      "note_scale_up": "Ultralytics val uses scaleup=False. The two differ only for images whose longest side is below 640; the app should scale up.",
+      "resized_size": "new_w = round(width * scale), new_h = round(height * scale)",
+      "centred": true,
+      "pad_x": "round((640 - new_w) / 2 - 0.1)  (left padding, pixels)",
+      "pad_y": "round((640 - new_h) / 2 - 0.1)  (top padding, pixels)",
+      "pad_value": 114,
+      "interpolation": "cv2.INTER_LINEAR (bilinear)",
+      "canvas": "640 x 640, resized image pasted at (pad_x, pad_y)",
+      "inverse_mapping": {
+        "x_original": "(x - pad_x) / gain_x, with gain_x = new_w / width (about equal to scale)",
+        "y_original": "(y - pad_y) / gain_y, with gain_y = new_h / height (about equal to scale)",
+        "clip": "Clip to [0, width] x [0, height] AFTER this mapping, as Ultralytics scale_boxes does. Clipping to [0, 640] before the mapping is not enough: it keeps boxes that reach into the padding."
+      },
+      "example_first_image": {
+        "w": 640,
+        "h": 358,
+        "scale": 1.0,
+        "new_w": 640,
+        "new_h": 358,
+        "pad_x": 0,
+        "pad_y": 141
+      }
+    },
+    "tflite_vs_pytorch": {
+      "images_compared": 20,
+      "agree": 20,
+      "agree_px": 5.0,
+      "clipped_before_compare": true,
+      "max_diff_px": 0.09,
+      "mean_diff_px": 0.02,
+      "mapped_back_to_original": {
+        "images": 20,
+        "within_agree_px": 19,
+        "max_diff_px": 8.38
+      },
+      "note": "trained weights"
+    },
+    "overlays": [
+      "/content/drive/MyDrive/birdeye_ml/exports/sanity_1.jpg",
+      "/content/drive/MyDrive/birdeye_ml/exports/sanity_2.jpg",
+      "/content/drive/MyDrive/birdeye_ml/exports/sanity_3.jpg"
+    ]
+  },
+  "package_versions": {
+    "torch": {
+      "loaded": "2.11.0+cu130",
+      "installed": "2.11.0+cu130"
+    },
+    "numpy": {
+      "loaded": "2.1.3",
+      "installed": "2.1.3"
+    },
+    "ultralytics": {
+      "loaded": "8.4.182",
+      "installed": "8.4.182"
+    },
+    "tensorflow": {
+      "loaded": "2.21.0",
+      "installed": "2.21.0"
+    },
+    "onnx": {
+      "loaded": "1.23.2",
+      "installed": "1.23.2"
+    },
+    "onnx2tf": {
+      "loaded": "2.3.15",
+      "installed": "2.3.15"
+    },
+    "onnxslim": {
+      "loaded": "0.1.98",
+      "installed": "0.1.98"
+    },
+    "onnxruntime": {
+      "loaded": "1.31.0",
+      "installed": "1.31.0"
+    },
+    "ai-edge-litert": {
+      "loaded": "2.3.0",
+      "installed": "2.3.0"
+    },
+    "litert-torch": {
+      "loaded": null,
+      "installed": null
+    },
+    "python": "3.13.15",
+    "changed_by_export": {
+      "onnx_graphsurgeon": "0.6.1",
+      "backports.strenum": "1.3.1",
+      "onnxruntime": "1.31.0",
+      "onnx2tf": "2.3.15",
+      "onnxslim": "0.1.98",
+      "sng4onnx": "2.0.1",
+      "ai-edge-litert": "2.3.0",
+      "onnx": "1.23.2",
+      "colorama": "0.4.6"
+    }
+  },
+  "package_versions_before_export": {
+    "torch": {
+      "loaded": "2.11.0+cu130",
+      "installed": "2.11.0+cu130"
+    },
+    "numpy": {
+      "loaded": "2.1.3",
+      "installed": "2.1.3"
+    },
+    "ultralytics": {
+      "loaded": "8.4.182",
+      "installed": "8.4.182"
+    }
+  }
+}
