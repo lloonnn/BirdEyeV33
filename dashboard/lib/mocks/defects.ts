@@ -95,6 +95,18 @@ const reasonsById: Record<number, LocationReason[]> = {
   120: ["main_road"],
 }
 
+// Mock only. Sample photos in public/mock-crops/, picked by type and rotated
+// by `n` (a defect id, plus the sighting index), so neighbours differ.
+const MOCK_CROPS: Record<DefectType, string[]> = {
+  pothole: ["pothole-1.jpg", "pothole-2.jpg"],
+  crack: ["crack-1.jpg"],
+}
+
+export function mockCropUrl(type: DefectType, n: number): string {
+  const images = MOCK_CROPS[type]
+  return `/mock-crops/${images[n % images.length]}`
+}
+
 export function locationReasons(id: number, location: number): LocationReason[] {
   if (reasonsById[id]) return [...reasonsById[id]]
   if (location >= 0.8) return ["main_road"]
@@ -133,7 +145,7 @@ export function seedDefects(now: number): Defect[] {
         first_seen: malaysiaIso(now - firstDays * 24 * HOUR - 3 * HOUR),
         last_seen: malaysiaIso(now - lastHours * HOUR),
         sighting_count: sightings,
-        crop_url: `/crops/mock-${id}.jpg`,
+        crop_url: mockCropUrl(type, id),
         segment_id: segmentId,
         work_order_id: workOrderId,
         confirmed_at: null,

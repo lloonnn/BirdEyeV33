@@ -25,6 +25,9 @@ from bird_eye.urgency import location_term, size_term
 # Test area centre: the contract's example point.
 CENTRE_LAT, CENTRE_LON = 3.1834, 101.5139
 PLACEHOLDER_CROP = Path(__file__).resolve().parent.parent / "tests" / "data" / "crop.jpg"
+# Sample crops, picked by type from the file path ("pothole" or "crack" in the name or folder).
+SEED_IMAGES = Path(__file__).resolve().parent / "seed_images"
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 DEVICE = "seed-invented"
 
 # (metres north, metres east, type, status, size term, age in days, sightings)
@@ -64,6 +67,21 @@ def offset(north_m: float, east_m: float) -> tuple[float, float]:
     lat = CENTRE_LAT + north_m / 111_320
     lon = CENTRE_LON + east_m / (111_320 * math.cos(math.radians(CENTRE_LAT)))
     return lat, lon
+
+
+def load_crops() -> dict[str, list[bytes]]:
+    """Sample images per defect type, sorted by path; the placeholder for a type with none."""
+    paths = sorted(p for p in SEED_IMAGES.rglob("*") if p.suffix.lower() in IMAGE_SUFFIXES) if SEED_IMAGES.is_dir() else []
+    crops = {
+        kind: [p.read_bytes() for p in paths if kind in p.relative_to(SEED_IMAGES).as_posix().lower()]
+        for kind in ("pothole", "crack")
+    }
+    missing = [kind for kind, images in crops.items() if not images]
+    if missing:
+        print(f"WARNING: no sample images for {', '.join(missing)} in {SEED_IMAGES}; using the placeholder crop.")
+        for kind in missing:
+            crops[kind] = [PLACEHOLDER_CROP.read_bytes()]
+    return crops
 
 
 def seed_work_orders(conn, by_status: dict[str, list[int]], scheduled_at: dict[int, object]) -> int:
@@ -111,7 +129,7 @@ def main() -> int:
     settings = get_settings()
     engine = make_engine(settings.database_url)
     storage = LocalDiskStorage(settings.crop_dir, settings.crop_url_prefix)
-    crop = PLACEHOLDER_CROP.read_bytes()
+    crops = load_crops()
     now = clock.now()
 
     with engine.begin() as conn:
@@ -159,7 +177,9 @@ def main() -> int:
                     "model_version": "seed-invented", "urgent": False, "crop_file": f"{client_id}.jpg",
                 }
                 key = crop_key(client_id)
-                storage.save(key, crop)
+                # Rotate by defect index so neighbours differ, and by sighting so one defect's crops differ.
+                images = crops[kind]
+                storage.save(key, images[(n + k) % len(images)])
                 sighting_id = conn.execute(
                     text(
                         """

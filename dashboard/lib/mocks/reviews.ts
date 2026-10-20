@@ -4,6 +4,7 @@
 // next to seed defects, so a "Yes, defect" answer merges into one of them.
 
 import type { DefectType, Review } from "@/lib/api-types"
+import { mockCropUrl } from "@/lib/mocks/defects"
 import { malaysiaIso } from "@/lib/mocks/iso"
 
 const HOUR = 60 * 60 * 1000
@@ -45,7 +46,7 @@ export function seedReviews(now: number): Review[] {
         model_version: "m-2026-10-01",
         urgent: false,
         crop_file: `${clientId}.jpg`,
-        crop_url: `/crops/${clientId}.jpg`,
+        crop_url: mockCropUrl(type, id),
       },
     }
   })

@@ -1,16 +1,21 @@
-# Copy to local.properties (not committed) and edit. Rebuild after changing.
+# Bird Eye v33 app: settings for this machine. Create a new file eagle/local.properties and  copy these lines into it
 
-# Android SDK location (Android Studio writes this for you)
-sdk.dir=/home/you/Android/Sdk
-
-# mock (default) or real
+# mock = using fake data, nothing uploaded. real = using live data and upload to your backend.
 birdeye.api=mock
 
-# Required when birdeye.api=real. Laptop address; cleartext HTTP works in debug builds only.
-birdeye.baseUrl=http://192.168.1.10:8000
+# Required if birdeye.api=real. 
+# 1. To find the laptop IP, run this in the laptop terminal: ip addr
+# 2. Look for an address like 192.168.x.x or 10.x.x.x.
+# 3. Do not use localhost. On the phone, localhost means the phone itself.
+# 4. The phone and the laptop must be on the same Wi-Fi or hotspot.
+# 5. To test the connection, open the phone's web browser and go to http://<your-laptop-ip>:8000/docs
+# 6. If you see a page listing the API endpoints, the phone can reach the backend.
+# 7. If the page does not load, check that the backend is running and both devices use the same Wi-Fi.
+birdeye.baseUrl=http://<your-laptop-ip>:8000
 
-# Camera height above the road in metres, measured in the mount. Default 1.0 with a warning.
-birdeye.cameraHeightM=1.2
-
-# Required when birdeye.api=real: a unique id per phone. Ignored by mock.
+# Required if birdeye.api=real.  Give a unique device name for a phone, no space in between.
 birdeye.deviceId=car-01
+
+# Optional. Height of the phone camera above the road, in metres. Default is 1.0. 
+# # In a car it is usually about 1.2, so we set 1.2 here
+birdeye.cameraHeightM=1.2

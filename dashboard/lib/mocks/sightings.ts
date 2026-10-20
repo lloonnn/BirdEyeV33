@@ -3,6 +3,7 @@
 // first seen to last seen, so the panel's history matches the defect.
 
 import type { Defect, Sighting } from "@/lib/api-types"
+import { mockCropUrl } from "@/lib/mocks/defects"
 import { malaysiaIso } from "@/lib/mocks/iso"
 
 const DEVICES = ["car-01", "car-02", "car-03", "van-04", "car-05", "van-06"]
@@ -18,7 +19,7 @@ export function mockSightings(defect: Defect): Sighting[] {
       captured_at: malaysiaIso(t),
       // Repeatable, not random: varies by defect and sighting.
       confidence: Math.round((0.6 + ((defect.id * 7 + i * 13) % 35) / 100) * 100) / 100,
-      crop_url: `/crops/mock-${defect.id}-${i + 1}.jpg`,
+      crop_url: mockCropUrl(defect.type, defect.id + i),
       device_id: DEVICES[(defect.id + i * 2) % DEVICES.length],
     }
   })

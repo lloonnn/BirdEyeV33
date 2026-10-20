@@ -209,11 +209,12 @@ export function resetMockData() {
   if (inMockMode) clearSaved()
 }
 
-// Where to load a crop from, or null when the crop is invented (mock mode
-// shows a placeholder instead). The backend serves `crop_url`; its path is
-// not fixed in v0, so a relative path is taken against the backend address.
+// Where to load a crop from, or null for the placeholder. Mock data points at
+// sample photos in public/mock-crops/, served by the dashboard itself; any
+// other mock crop is null. The backend serves `crop_url`; its path is not
+// fixed in v0, so a relative path is taken against the backend address.
 export function cropSrc(cropUrl: string, fn: ApiFunction): string | null {
-  if (usesMock(fn)) return null
+  if (usesMock(fn)) return cropUrl.startsWith("/mock-crops/") ? cropUrl : null
   return /^https?:\/\//.test(cropUrl) ? cropUrl : `${baseUrl}${cropUrl}`
 }
 
