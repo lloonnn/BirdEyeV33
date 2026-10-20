@@ -11,15 +11,20 @@ import kotlin.math.roundToInt
 
 /**
  * How a frame was fitted into the square model input, kept so box coordinates can be mapped back.
- * A source pixel (x, y) lands at (x * scale + padX, y * scale + padY) in the input.
+ * The frame is resized to [newW] x [newH] and pasted at ([padX], [padY]). A source pixel (x, y) lands at
+ * (x * gainX + padX, y * gainY + padY). Same rule as the training report (tflite_conventions.preprocessing).
  */
-data class Letterbox(val scale: Float, val padX: Float, val padY: Float, val srcW: Int, val srcH: Int) {
+data class Letterbox(val scale: Float, val padX: Float, val padY: Float, val srcW: Int, val srcH: Int, val newW: Int, val newH: Int) {
+    val gainX get() = newW.toFloat() / srcW
+    val gainY get() = newH.toFloat() / srcH
+
     companion object {
+        /** Scale is size / longest side (scaling up is allowed); padding is round((size - new) / 2 - 0.1). */
         fun of(srcW: Int, srcH: Int, size: Int): Letterbox {
             val scale = min(size.toFloat() / srcW, size.toFloat() / srcH)
             val w = (srcW * scale).roundToInt()
             val h = (srcH * scale).roundToInt()
-            return Letterbox(scale, ((size - w) / 2).toFloat(), ((size - h) / 2).toFloat(), srcW, srcH)
+            return Letterbox(scale, ((size - w) / 2f - 0.1f).roundToInt().toFloat(), ((size - h) / 2f - 0.1f).roundToInt().toFloat(), srcW, srcH, w, h)
         }
     }
 }
@@ -38,7 +43,7 @@ fun preprocess(frame: Bitmap, size: Int, out: FloatBuffer): Letterbox {
     val canvasBitmap = createBitmap(size, size)
     canvasBitmap.eraseColor(Color.rgb(PAD_GREY, PAD_GREY, PAD_GREY))
     val dst = android.graphics.RectF(
-        box.padX, box.padY, box.padX + frame.width * box.scale, box.padY + frame.height * box.scale,
+        box.padX, box.padY, box.padX + box.newW, box.padY + box.newH,
     )
     Canvas(canvasBitmap).drawBitmap(frame, null, dst, Paint(Paint.FILTER_BITMAP_FLAG))
     val pixels = IntArray(size * size)
