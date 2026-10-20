@@ -24,6 +24,19 @@ class DecoderTest {
         assertEquals(0f, box.padY, 1e-6f)
     }
 
+    @Test fun letterboxPaddingFollowsReport() {
+        // 640 x 358: scale 1, pad y = round((640 - 358) / 2 - 0.1) = 141.
+        val wide = Letterbox.of(640, 358, 640)
+        assertEquals(0f, wide.padX, 1e-6f)
+        assertEquals(141f, wide.padY, 1e-6f)
+        // 100 x 51 scales up by 6.4 to 640 x 326 (rounded): pad y = round(157 - 0.1) = 157. Gain y = 326 / 51, not 6.4.
+        val small = Letterbox.of(100, 51, 640)
+        assertEquals(640, small.newW)
+        assertEquals(326, small.newH)
+        assertEquals(157f, small.padY, 1e-6f)
+        assertEquals(326f / 51, small.gainY, 1e-6f)
+    }
+
     @Test fun dropsBelowThresholdAndNormalisesAgainstFullFrame() {
         val out = empty()
         out.set(0, 320f, 320f, 160f, 80f, 0.9f, 0.1f) // model space x 240..400, y 280..360

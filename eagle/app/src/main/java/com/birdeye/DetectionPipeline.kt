@@ -206,6 +206,6 @@ class DetectionPipeline(
     }
 
     companion object {
-        const val MODEL_ASSET = "birdeye_m-2026-10-19_quick_float16.tflite"
+        const val MODEL_ASSET = "birdeye_m-2026-10-19-full_full_float16.tflite"
     }
 }

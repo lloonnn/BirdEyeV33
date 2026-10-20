@@ -48,10 +48,10 @@ fun decode(output: FloatArray, n: Int, box: Letterbox, reviewMin: Double, nmsIou
 
     val result = ArrayList<Detection>()
     for (c in kept.sortedByDescending { it.score }) {
-        val x1 = ((c.x1 - box.padX) / box.scale).coerceIn(0f, box.srcW.toFloat())
-        val y1 = ((c.y1 - box.padY) / box.scale).coerceIn(0f, box.srcH.toFloat())
-        val x2 = ((c.x2 - box.padX) / box.scale).coerceIn(0f, box.srcW.toFloat())
-        val y2 = ((c.y2 - box.padY) / box.scale).coerceIn(0f, box.srcH.toFloat())
+        val x1 = ((c.x1 - box.padX) / box.gainX).coerceIn(0f, box.srcW.toFloat())
+        val y1 = ((c.y1 - box.padY) / box.gainY).coerceIn(0f, box.srcH.toFloat())
+        val x2 = ((c.x2 - box.padX) / box.gainX).coerceIn(0f, box.srcW.toFloat())
+        val y2 = ((c.y2 - box.padY) / box.gainY).coerceIn(0f, box.srcH.toFloat())
         if (x2 <= x1 || y2 <= y1) continue // entirely in the padding or outside the frame
         result += Detection(c.type, c.score, floatArrayOf(x1 / box.srcW, y1 / box.srcH, x2 / box.srcW, y2 / box.srcH))
     }
