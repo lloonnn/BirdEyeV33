@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import { FinishJobDialog } from "@/components/overview/finish-job-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { guarded } from "@/lib/action-lock"
+import { CropImage } from "@/components/crop-image"
 import { cropSrc, finishWorkOrder, getDefect, rejectDefect, verifyDefect } from "@/lib/api"
 import { ApiError, type Defect, type DefectDetail } from "@/lib/api-types"
 import { cleanPassesToConfirm, whyTermMin } from "@/lib/config"
@@ -297,15 +298,7 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
           />
         )}
 
-        {crop ? (
-          // The backend's crop host is not known at build time, so next/image cannot be configured for it.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={crop} alt={`Crop of defect ${d.id}`} className="aspect-video w-full rounded-xl object-cover" />
-        ) : (
-          <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/5 text-xs text-muted-foreground">
-            Invented crop
-          </div>
-        )}
+        <CropImage src={crop} alt={`Crop of defect ${d.id}`} className="rounded-xl" />
 
         {/* Only urgent defects need a reason; Low omits the line. */}
         {d.urgency_band !== "low" && (

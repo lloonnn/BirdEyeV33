@@ -43,6 +43,12 @@ export const mockLatencyMs = 250
 // (out of scope). Starting value, to be tuned.
 export const areaBounds: [number, number, number, number] = [101.5, 3.17, 101.53, 3.2]
 
+// Real mode, first load only: the whole region the backend can hold, as a bbox
+// (minLon, minLat, maxLon, maxLat). The first fit uses the defects found in it,
+// wherever they are; after that the map loads what is in view. The whole world
+// is a safe starting value, to be tuned.
+export const regionBounds: [number, number, number, number] = [-180, -90, 180, 90]
+
 // GET /defects returns at most this many defects when no `limit` is sent
 // (manager's decision, 15 Oct). Mirrors the backend default: the map says
 // pins may be missing when a response has exactly this many.

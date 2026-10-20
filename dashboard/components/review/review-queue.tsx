@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { guarded } from "@/lib/action-lock"
+import { CropImage } from "@/components/crop-image"
 import { answerReview, cropSrc, getReviews } from "@/lib/api"
 import { ApiError, type DefectType, type Review, type ReviewAnswer } from "@/lib/api-types"
 import { defectTypes, typeName } from "@/lib/labels"
@@ -67,20 +68,7 @@ const answers: { kind: Kind; label: string; key: string }[] = [
 ]
 
 function CropBox({ src, alt, className }: { src: string | null; alt: string; className?: string }) {
-  return src ? (
-    // The backend's crop host is not known at build time, so next/image cannot be configured for it.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={cn("aspect-video w-full rounded-md object-cover", className)} />
-  ) : (
-    <div
-      className={cn(
-        "flex aspect-video w-full items-center justify-center rounded-md border border-dashed border-border bg-muted text-xs text-muted-foreground",
-        className
-      )}
-    >
-      Invented crop
-    </div>
-  )
+  return <CropImage src={src} alt={alt} className={cn("rounded-md", className)} />
 }
 
 // Review page (brief section 5.2): unsure detections waiting for a supervisor.
