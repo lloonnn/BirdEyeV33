@@ -6,13 +6,13 @@ import { cn } from "@/lib/utils"
 
 type Props = {
   stage: Stage
-  // Defects counted in each stage across the pilot area, or null until loaded.
+  // Defects counted in each stage across the whole region, or null until loaded.
   counts: Record<Stage, number | null>
   onStage: (stage: Stage) => void
   className?: string
 }
 
-// Card 1: three numbers for the whole pilot area. They are a button group:
+// Card 1: three numbers for the whole region. They are a button group:
 // the selected one decides what the map, the list and the stepper show.
 export function SummaryCard({ stage, counts, onStage, className }: Props) {
   return (

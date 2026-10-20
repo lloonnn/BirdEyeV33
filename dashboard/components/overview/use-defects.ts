@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 
 import { getDefects } from "@/lib/api"
 import type { Defect, DefectsQuery } from "@/lib/api-types"
-import { defectsPollMs } from "@/lib/config"
 import { setLastUpdated } from "@/lib/last-updated"
 
 type Loaded = { key: string; defects: Defect[]; at: Date }
@@ -20,18 +19,12 @@ export type DefectsState = {
   loading: boolean
 }
 
-// Loads GET /defects for `query` (null waits), and reloads on the poll
-// interval because the contract has no push channel. A new `refreshKey`
-// reloads at once, for example after an action changes a defect.
-export function useDefects(query: DefectsQuery | null, refreshKey = 0): DefectsState {
+// Loads GET /defects for `query` (null waits). A new `refreshKey` reloads at
+// once, for example after an action changes a defect; a new `pollTick` reloads
+// on the page's poll (see usePoll). A failed reload keeps the last data.
+export function useDefects(query: DefectsQuery | null, refreshKey = 0, pollTick = 0): DefectsState {
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [failure, setFailure] = useState<Failure | null>(null)
-  const [pollTick, setPollTick] = useState(0)
-
-  useEffect(() => {
-    const id = setInterval(() => setPollTick((t) => t + 1), defectsPollMs)
-    return () => clearInterval(id)
-  }, [])
 
   const key = query ? JSON.stringify(query) : null
 

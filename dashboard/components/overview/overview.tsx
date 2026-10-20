@@ -15,14 +15,24 @@ import { Stepper } from "@/components/overview/stepper"
 import { type Stage, defaultStage, isStage, stages } from "@/components/overview/summary"
 import { SummaryCard } from "@/components/overview/summary-card"
 import { type DefectsState, useDefects } from "@/components/overview/use-defects"
+import { usePoll } from "@/components/overview/use-poll"
 import { getDefect, inMockMode } from "@/lib/api"
 import { ApiError, type Bbox, type Defect, type DefectsQuery } from "@/lib/api-types"
-import { areaBounds, defectsDefaultLimit, defectsReloadDebounceMs, fixFirstCount, regionBounds } from "@/lib/config"
+import { useActionLock } from "@/lib/action-lock"
+import {
+  areaBounds,
+  defectsDefaultLimit,
+  defectsPollMs,
+  defectsReloadDebounceMs,
+  fixFirstCount,
+  regionBounds,
+} from "@/lib/config"
 import { formatClock } from "@/lib/time"
 
-// One query per stage over the whole pilot area, most urgent first. Its length
-// is the stage's count, and its first rows are the Most urgent list.
-const stageQuery = (status: Stage): DefectsQuery => ({ bbox: areaBounds, status: [status], sort: "urgency_desc" })
+// One query per stage over the whole region, most urgent first. Its length is
+// the stage's count, and its first rows are the Most urgent list. The map pins
+// load the visible area only.
+const stageQuery = (status: Stage): DefectsQuery => ({ bbox: regionBounds, status: [status], sort: "urgency_desc" })
 const detectedQuery = stageQuery("detected")
 const verifiedQuery = stageQuery("verified")
 const scheduledQuery = stageQuery("scheduled")
@@ -63,6 +73,12 @@ export function Overview() {
   // ?defect=<id>, for example from a work order: open that defect on load.
   const linkedId = Number(useSearchParams().get("defect")) || null
   const [linkError, setLinkError] = useState<string | null>(null)
+  // The open panel has a dialog up or an action running.
+  const [panelBusy, setPanelBusy] = useState(false)
+  const { asking } = useActionLock()
+  // Real mode only: reload counts, list and pins on an interval while the tab
+  // is visible. A poll keeps the map view, the panel and the selection.
+  const pollTick = usePoll(defectsPollMs, !inMockMode, panelBusy || asking)
 
   useEffect(() => {
     if (!linkedId) return
@@ -96,10 +112,10 @@ export function Overview() {
   useEffect(() => () => clearTimeout(debounce.current), [])
 
   // Keep the last data on screen while a new area loads or the server is down.
-  const view = useDefects(bbox ? { bbox, status: [stage] } : null, refreshKey)
-  const detected = useDefects(detectedQuery, refreshKey)
-  const verified = useDefects(verifiedQuery, refreshKey)
-  const scheduled = useDefects(scheduledQuery, refreshKey)
+  const view = useDefects(bbox ? { bbox, status: [stage] } : null, refreshKey, pollTick)
+  const detected = useDefects(detectedQuery, refreshKey, pollTick)
+  const verified = useDefects(verifiedQuery, refreshKey, pollTick)
+  const scheduled = useDefects(scheduledQuery, refreshKey, pollTick)
   const byStage: Record<Stage, DefectsState> = { detected, verified, scheduled }
   const current = byStage[stage]
   // Real mode only; mock mode keeps fitting to the selected stage's defects.
@@ -240,6 +256,7 @@ export function Overview() {
           now={lastAt ? now : new Date(selected.last_seen).getTime()}
           refreshKey={refreshKey}
           onChanged={reloadAll}
+          onBusyChange={setPanelBusy}
           known={known}
           onClose={closePanel}
           className="absolute top-19 right-4 z-20 max-h-[calc(100vh-9.5rem)] w-88"

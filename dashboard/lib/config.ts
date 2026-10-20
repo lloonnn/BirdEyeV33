@@ -29,8 +29,9 @@ export const mapView = {
 // Wait after the last pan or zoom before loading defects. Starting value, to be tuned.
 export const defectsReloadDebounceMs = 300
 
-// Reload the visible defects on this interval; the contract has no push
-// channel. Starting value, to be tuned.
+// Real mode: reload the Overview's counts, Most urgent list and pins on this
+// interval while the tab is visible; the contract has no push channel.
+// Starting value, to be tuned.
 export const defectsPollMs = 30_000
 
 // Mock mode only: delay on every mock call, so loading states show as they
@@ -38,14 +39,14 @@ export const defectsPollMs = 30_000
 export const mockLatencyMs = 250
 
 // The pilot area as a bbox (minLon, minLat, maxLon, maxLat), from the brief's
-// seed area. The Most urgent list and the summary numbers count this whole
-// area, not just the map view. A query area, not a township boundary setting
-// (out of scope). Starting value, to be tuned.
+// seed area. The map falls back to it when no defects are found, and the Work
+// orders page loads its defects from it. A query area, not a township boundary
+// setting (out of scope). Starting value, to be tuned.
 export const areaBounds: [number, number, number, number] = [101.5, 3.17, 101.53, 3.2]
 
-// Real mode, first load only: the whole region the backend can hold, as a bbox
-// (minLon, minLat, maxLon, maxLat). The first fit uses the defects found in it,
-// wherever they are; after that the map loads what is in view. The whole world
+// The whole region the backend can hold, as a bbox (minLon, minLat, maxLon,
+// maxLat). The stage counts and the Most urgent list count it; in real mode
+// the first fit uses the defects found in it. The map pins load what is in view. The whole world
 // is a safe starting value, to be tuned.
 export const regionBounds: [number, number, number, number] = [-180, -90, 180, 90]
 

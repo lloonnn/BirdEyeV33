@@ -25,6 +25,8 @@ type Props = {
   refreshKey: number
   // Ask the page to reload everything from the API after an action.
   onChanged: () => void
+  // True while a dialog is open or an action runs, so the page holds its poll.
+  onBusyChange?: (busy: boolean) => void
   // Defects already loaded, used to name a job's defects in the dialog.
   known: Defect[]
   onClose: () => void
@@ -102,7 +104,7 @@ const primaryButton =
 
 // Right panel: the selected defect. Title, next step and its one action,
 // crop and why it ranks; the rest behind "Details". v0 has no street name.
-export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose, className }: Props) {
+export function DefectPanel({ defect, now, refreshKey, onChanged, onBusyChange, known, onClose, className }: Props) {
   const [result, setResult] = useState<DetailResult | null>(null)
   const [copied, setCopied] = useState<"yes" | "failed" | null>(null)
   const [running, setRunning] = useState<"verify" | "finish" | "reject" | null>(null)
@@ -154,6 +156,14 @@ export function DefectPanel({ defect, now, refreshKey, onChanged, known, onClose
   const reasons = strong.length > 0 ? strong : (ranked.map(([key]) => termWords(d, key)).find((w) => w.length > 0) ?? [])
   const refreshing = waitAfter !== null && (current?.key ?? -1) <= waitAfter
   const busy = running !== null || refreshing
+  const holding = busy || confirming || rejecting
+
+  useEffect(() => {
+    onBusyChange?.(holding)
+  }, [onBusyChange, holding])
+
+  // Closing the panel ends any hold.
+  useEffect(() => () => onBusyChange?.(false), [onBusyChange])
 
   // Runs one action, then reloads the panel, pins, list and numbers from the API.
   // A rejected defect leaves the map, so the panel closes after a reject.
