@@ -174,7 +174,8 @@ fun CameraPreview(modifier: Modifier = Modifier, source: CameraFrameSource? = nu
         }, ContextCompat.getMainExecutor(context))
         onDispose {
             disposed = true
-            provider?.unbind(useCase)
+            analysis?.clearAnalyzer()
+            provider?.unbind(*listOfNotNull(useCase, analysis).toTypedArray())
         }
     }
     AndroidView(factory = { previewView }, modifier = modifier)
