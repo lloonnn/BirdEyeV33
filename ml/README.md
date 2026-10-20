@@ -11,8 +11,6 @@ Training and export for the Bird Eye v33 detector.
 4. Trains YOLO11n with Ultralytics, saving `last.pt` to Drive every epoch.
 5. Validates, exports a float16 TFLite model, checks it against PyTorch on 20 images and writes a JSON report.
 
-Ultralytics is allowed for the prototype by a manager decision. This overrides decision 8 in `docs/decisions.md` and `ml/CLAUDE.md`.
-
 ## Run modes
 
 | `RUN_MODE` | What it does | Use it for |

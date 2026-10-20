@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto"
 
 // Checks the action code on the server. ACTION_CODE is a server-only env var
 // (never NEXT_PUBLIC_), set in dashboard/.env.local or on the host. A speed
-// bump against stray clicks, not security: see dashboard/CLAUDE.md.
+// bump against stray clicks, not security.
 //
 // POST only: GET handlers can be prerendered with Cache Components, which
 // would freeze the env check at build time; POST runs on every request.

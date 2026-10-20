@@ -27,3 +27,9 @@ Thumbs.db
 
 # Next.js build output
 .next/
+
+# Local-only files
+CONTRIBUTING.md
+docs/decisions.md
+docs/reference/
+CLAUDE.md

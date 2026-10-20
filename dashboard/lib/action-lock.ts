@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react"
 // The action lock: viewing needs no code; the first action in a session asks
 // for the action code, checked on the server by app/api/unlock. Only an
 // "unlocked" flag is kept, in sessionStorage, never the code. A speed bump,
-// not security: see dashboard/CLAUDE.md. Client only.
+// not security. Client only.
 
 const STORAGE_KEY = "bird-eye-unlocked"
 

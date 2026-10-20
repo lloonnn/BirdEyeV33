@@ -66,11 +66,11 @@ Detail: [docs/architecture.md](docs/architecture.md).
 
 | Folder | What it is |
 |---|---|
-| [`eagle/`](eagle/CLAUDE.md) | Android app that detects defects on the phone (Kotlin, Jetpack Compose) |
-| [`backend/`](backend/CLAUDE.md) | API, background jobs and agents (Python, FastAPI, uv) |
-| [`dashboard/`](dashboard/CLAUDE.md) | Staff web dashboard (Next.js, shadcn/ui; Leaflet planned, not installed) |
-| [`ml/`](ml/CLAUDE.md) | Model training and conversion to LiteRT (Python, PyTorch, uv) |
-| [`docs/`](docs/decisions.md) | Architecture, API contract, decisions and licence register |
+| [`eagle/`](eagle/) | Android app that detects defects on the phone (Kotlin, Jetpack Compose) |
+| [`backend/`](backend/) | API, background jobs and agents (Python, FastAPI, uv) |
+| [`dashboard/`](dashboard/) | Staff web dashboard (Next.js, shadcn/ui; Leaflet planned, not installed) |
+| [`ml/`](ml/) | Model training and conversion to LiteRT (Python, PyTorch, uv) |
+| [`docs/`](docs/) | Architecture, API contract, decisions and licence register |
 
 ## Getting started
 
@@ -168,8 +168,6 @@ uv run backend   # in ml/: uv run ml
 
 - [docs/architecture.md](docs/architecture.md): how the system works, end to end.
 - [docs/api-contract.md](docs/api-contract.md): endpoints and payloads between the phone, backend and dashboard.
-- [docs/decisions.md](docs/decisions.md): scope, decision log and licence register. It overrides every other document.
-- [CONTRIBUTING.md](CONTRIBUTING.md): branches, commits, reviews and owners.
 
 ## Questions
 
