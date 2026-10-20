@@ -19,3 +19,12 @@ birdeye.deviceId=car-01
 # Optional. Height of the phone camera above the road, in metres. Default is 1.0. 
 # # In a car it is usually about 1.2, so we set 1.2 here
 birdeye.cameraHeightM=1.2
+
+# Optional. Replay mode uses a recorded video and an invented GPS line instead of the real camera and GPS. (name your video as replay.mp4 and put it in the your download/ folder)
+# 1. birdeye.replaay=true for using recorded video. birdeye.replaay=false to use the real camera and real GPS.
+# 2. Copy the video from the laptop to the phone. Run this on the laptop terminal, make sure you are in the directory that has the video, with the phone plugged in and USB debugging on:
+#    ~/Android/Sdk/platform-tools/adb push ~/Downloads/replay.mp4 /sdcard/Android/data/com.birdeye/files/replay.mp4
+# 3. Install the app by pressing Run button in Android Studio, or run this from the terminal in the eagle folder:
+#    ./gradlew installDebug
+birdeye.replay=false
+

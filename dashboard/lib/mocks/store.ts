@@ -26,8 +26,9 @@ type Saved = {
   negativeExamples: string[]
 }
 
-// Bump the version when the saved shape changes, so old saves are ignored.
-const STORAGE_KEY = "bird-eye-mock-v2"
+// Bump the version when the saved shape or seed values change, so old saves
+// are ignored. v3: crops point at public/mock-crops/.
+const STORAGE_KEY = "bird-eye-mock-v3"
 const canPersist = process.env.NEXT_PUBLIC_API_MODE !== "real" && typeof window !== "undefined"
 
 function seed(): Saved {
