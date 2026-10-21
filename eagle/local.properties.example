@@ -1,5 +1,12 @@
 # Bird Eye v33 app: settings for this machine. Create a new file eagle/local.properties and  copy these lines into it
 
+# Android SDK path. Android Studio adds this line when you open the eagle folder.
+# If you build from a terminal, set it yourself. Use ONE of these:
+#   Windows: sdk.dir=C\:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
+#   macOS:   sdk.dir=/Users/<you>/Library/Android/sdk
+#   Linux:   sdk.dir=/home/<you>/Android/Sdk
+sdk.dir=
+
 # mock = using fake data, nothing uploaded. real = using live data and upload to your backend.
 birdeye.api=mock
 
