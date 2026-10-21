@@ -214,7 +214,7 @@ export function ReviewQueue() {
             "Review"
           )}
         </h1>
-        <p className="text-sm text-muted-foreground">Your answers train the next model.</p>
+        <p className="text-sm text-muted-foreground">Your answers are saved with each defect.</p>
       </header>
 
       {error !== null && (
