@@ -1,4 +1,15 @@
-# PostGIS for the demo laptop (decision 34). Tag pinned so every teammate runs the same version.
+# Two ways to run the backend. Do not run both at once: they share port 8000 and the db port 5432.
+#
+# 1. Full stack in Docker (db, backend, dashboard). From backend/:
+#      docker compose up --build
+#    Dashboard at http://localhost:3000, API at http://localhost:8000.
+#    Clean start: docker compose down -v
+#
+# 2. Developer route. Only the db runs in Docker, the rest runs on the host:
+#      python dev.py
+#    It runs "docker compose up -d db".
+#
+# PostGIS tag is pinned so every teammate runs the same version.
 services:
   db:
     image: postgis/postgis:17-3.5
@@ -12,5 +23,48 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./docker/initdb/01-test-db.sql:/docker-entrypoint-initdb.d/01-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U birdeye -d birdeye"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      BIRDEYE_DATABASE_URL: postgresql+psycopg://birdeye:birdeye@db:5432/birdeye
+      BIRDEYE_CORS_ORIGINS: '["http://localhost:3000"]'
+      # On so the demo can record clean passes through /dev.
+      BIRDEYE_DEV_ENDPOINTS_ENABLED: "true"
+      BIRDEYE_CROP_DIR: /data/crops
+      # Optional. Only the agents need them.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+    ports:
+      # All interfaces, so a phone on the same network can reach it.
+      - "8000:8000"
+    volumes:
+      - crops:/data/crops
+
+  dashboard:
+    build:
+      context: ../dashboard
+      args:
+        NEXT_PUBLIC_API_MODE: real
+        # The browser calls the backend through the published port, not the service name.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+        NEXT_PUBLIC_CARTO_KEY: ${NEXT_PUBLIC_CARTO_KEY:-}
+    environment:
+      # Code that unlocks dashboard actions. Change it by setting ACTION_CODE.
+      ACTION_CODE: ${ACTION_CODE:-demo}
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
 volumes:
   db-data:
+  crops:

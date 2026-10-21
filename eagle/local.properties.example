@@ -4,7 +4,7 @@
 birdeye.api=mock
 
 # Required if birdeye.api=real. 
-# 1. To find the laptop IP, run this in the laptop terminal: ip addr
+# 1. To find the laptop IP, run this in the laptop terminal: hostname -I (for linux), ipconfig (for windows), ipconfig getifaddr en0 (for macos)
 # 2. Look for an address like 192.168.x.x or 10.x.x.x.
 # 3. Do not use localhost. On the phone, localhost means the phone itself.
 # 4. The phone and the laptop must be on the same Wi-Fi or hotspot.
@@ -22,9 +22,9 @@ birdeye.cameraHeightM=1.2
 
 # Optional. Replay mode uses a recorded video and an invented GPS line instead of the real camera and GPS. (name your video as replay.mp4 and put it in the your download/ folder)
 # 1. birdeye.replaay=true for using recorded video. birdeye.replaay=false to use the real camera and real GPS.
-# 2. Copy the video from the laptop to the phone. Run this on the laptop terminal, make sure you are in the directory that has the video, with the phone plugged in and USB debugging on:
-#    ~/Android/Sdk/platform-tools/adb push ~/Downloads/replay.mp4 /sdcard/Android/data/com.birdeye/files/replay.mp4
-# 3. Install the app by pressing Run button in Android Studio, or run this from the terminal in the eagle folder:
+# 2. Install the app by pressing Run button in Android Studio, or run this from the terminal in the eagle folder:
 #    ./gradlew installDebug
+# 3. Copy the video from the laptop to the phone. Run this on the laptop terminal, make sure you are in the directory that has the video, with the phone plugged in and USB debugging on:
+#    ~/Android/Sdk/platform-tools/adb push ~/Downloads/replay.mp4 /sdcard/Android/data/com.birdeye/files/replay.mp4
 birdeye.replay=false
 
