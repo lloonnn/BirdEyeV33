@@ -87,6 +87,11 @@ Detail: [docs/architecture.md](docs/architecture.md).
 - Repair confirmation is built, but clean passes are recorded only through a dev endpoint today.
 - Face and plate blur is not built. Crops can show faces and plates.
 
+## Future Improvement
+- Retrained model with the reviewed detection from the dashboard to improve accuracy in from the Malauysian roads.
+- Apply face and plate blur on the crop images.
+- Allow more detection classes such as street lights, drains, etc.
+
 ## Repo map
 
 | Folder | What it is |
@@ -107,7 +112,7 @@ cp .env.example .env     # optional, only for API keys
 docker compose up --build
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. Ctrl+C stops it. Add `-d` to get the terminal back, then use `docker compose logs -f`.
 
 Full steps, phone app and manual route: [SETUP.md](SETUP.md).
 

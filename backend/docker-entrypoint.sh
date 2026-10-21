@@ -20,4 +20,7 @@ else
     echo "Database has defects: not seeding."
 fi
 
+echo "Bird Eye is running"
+echo "Dashboard: http://localhost:3000"
+echo "API:       http://localhost:8000"
 exec uvicorn bird_eye.main:app --host 0.0.0.0 --port 8000

@@ -22,7 +22,7 @@ Which file holds your keys depends on the route.
 - `NEXT_PUBLIC_CARTO_KEY`
 - `ACTION_CODE`
 
-Docker ignores `dashboard/.env.local`. After you change `NEXT_PUBLIC_CARTO_KEY`, run `docker compose up --build -d` again.
+Docker ignores `dashboard/.env.local`. After you change `NEXT_PUBLIC_CARTO_KEY`, run `docker compose up --build` again.
 
 **Manual route:** use two files.
 - `dashboard/.env.local`: `NEXT_PUBLIC_CARTO_KEY` and `ACTION_CODE`.
@@ -46,10 +46,12 @@ Open `backend/.env` and fill in only what you need:
 Start it:
 
 ```bash
-docker compose up --build -d
+docker compose up --build
 ```
 
-The first build takes a few minutes. Then check it:
+The first build takes a few minutes. Ctrl+C stops it. To get the terminal back, add `-d`, then use `docker compose logs -f` to watch the logs.
+
+When the banner "Bird Eye is running" shows, open a second terminal and check it:
 
 ```bash
 curl "localhost:8000/defects?bbox=-180,-90,180,90"
@@ -57,7 +59,7 @@ curl "localhost:8000/defects?bbox=-180,-90,180,90"
 
 You should see a list of 15 defects. Open http://localhost:3000 for the dashboard. The API is at http://localhost:8000.
 
-The map works without `NEXT_PUBLIC_CARTO_KEY`, but the tiles show an "API key required" watermark. The key is built into the dashboard. After you change it, run `docker compose up --build -d` again.
+The map works without `NEXT_PUBLIC_CARTO_KEY`, but the tiles show an "API key required" watermark. The key is built into the dashboard. After you change it, run `docker compose up --build` again.
 
 On the first start the backend loads invented data. It does this only when the database has no defects, so a restart does not add more.
 
