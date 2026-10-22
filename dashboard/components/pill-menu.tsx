@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { EyeIcon, LockIcon, LockOpenIcon, RotateCcwIcon } from "lucide-react"
+import { LockIcon, LockOpenIcon, RotateCcwIcon } from "lucide-react"
 
+import { BirdIcon } from "@/components/bird-icon"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Button } from "@/components/ui/button"
 
@@ -58,7 +59,7 @@ export function PillMenu() {
         {/* Below 1024 px the menu takes its own row under the status pill, so the links keep their width. */}
         {/* From 1024 px its max width leaves the status pill plus 16 px gaps on both sides. */}
         <Link href="/" className="flex shrink-0 items-center gap-2 pr-1 pl-3 text-sm xl:pr-2 font-semibold">
-          <EyeIcon className="size-4" aria-hidden />
+          <BirdIcon className="h-3.5" />
           Bird Eye v33
         </Link>
         <ul className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
