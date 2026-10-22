@@ -57,7 +57,7 @@ export function PillMenu() {
       >
         {/* Below 1024 px the menu takes its own row under the status pill, so the links keep their width. */}
         {/* From 1024 px its max width leaves the status pill plus 16 px gaps on both sides. */}
-        <Link href="/" className="flex shrink-0 items-center gap-2 pr-2 pl-3 text-sm font-semibold">
+        <Link href="/" className="flex shrink-0 items-center gap-2 pr-1 pl-3 text-sm xl:pr-2 font-semibold">
           <EyeIcon className="size-4" aria-hidden />
           Bird Eye v33
         </Link>
@@ -70,7 +70,7 @@ export function PillMenu() {
                   href={item.url}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "block rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors xl:px-3.5",
+                    "block rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors lg:px-1.5 xl:px-3.5",
                     active
                       ? "bg-primary font-medium text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
