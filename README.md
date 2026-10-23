@@ -88,9 +88,10 @@ Detail: [docs/architecture.md](docs/architecture.md).
 - Face and plate blur is not built. Crops can show faces and plates.
 
 ## Future Improvement
-- Retrained model with the reviewed detection from the dashboard to improve accuracy in from the Malauysian roads.
+- Retrained model with the reviewed detection come from human feedback to improve accuracy in from the Malaysian roads.
 - Apply face and plate blur on the crop images.
 - Allow more detection classes such as street lights, drains, etc.
+- Upgrade to AI dashcam 
 
 ## Repo map
 
@@ -123,3 +124,12 @@ Full steps, phone app and manual route: [SETUP.md](SETUP.md).
 - [docs/api-contract.md](docs/api-contract.md): endpoints and payloads between the phone, backend and dashboard.
 - [docs/user-guide.md](docs/user-guide.md): how staff use the dashboard.
 - [docs/faq.md](docs/faq.md): common questions and answers.
+
+## Source
+
+- crack-1.jpg : https://www.pexels.com/photo/cars-by-the-road-14677883/
+- pothole-1.jpg: https://www.pexels.com/photo/scenic-country-path-with-reflective-puddle-37733541/
+- pothole-2.jpg: https://www.pexels.com/photo/narrow-street-with-puddles-17158119/
+
+- Project demo: https://youtu.be/L4j-fjju8hE
+- Project set up (Complement of [SETUP.md](SETUP.md)): https://youtu.be/wMD4u-bM8u0
